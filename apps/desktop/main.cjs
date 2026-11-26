@@ -17,6 +17,8 @@ const Workspace = require('./workspace.cjs');
 const { Zoom, action: zoomAction } = require('./zoom.cjs');
 const {LayoutSettings}=require('./layout.cjs');
 const ConversationSettings=require('./conversation-settings.js');
+const {ActivityJournal}=require('./activity-journal.cjs');
+let activityJournal;
 let layoutSettings;
 let zoom;
 function changeZoom(action) {
@@ -27,6 +29,7 @@ function changeZoom(action) {
 const provider = new ProviderSession();
 const emitStream = batch => {
   if (!window || window.isDestroyed()) return;
+  activityJournal.observe(provider.scope,batch);
   for (const frame of batch.events) if (frame.event === 'transcript') for (const a of frame.data.attachments || []) attachments.set(batch.id + ':' + a.file.fileId, a.file);
   window.webContents.send('desk:stream', {...batch,context:provider.scope});
 };
@@ -54,6 +57,7 @@ const sessionDrafts = new Map();
 let readController = new AbortController();
 let transcriptController = new AbortController();
 function changed() {
+  activityJournal?.stop();
   dev?.clear();
   previews.reset(true);
   provider.stop();
@@ -71,6 +75,8 @@ function changed() {
 }
 
 const operations = {
+  activityJournal:()=>activityJournal.snapshot(provider.scope),
+  clearActivityJournal:()=>activityJournal.clear(provider.scope),
   providerInfo: () => provider.describe(),
   dev: (...args) => {if(!dev || !devAction)throw Error('Dev tools are unavailable in this build.');return devAction(...args);},
   conversationMetadata: async id => {
@@ -85,10 +91,12 @@ const operations = {
     return {id,hasUnreads:result.hasUnreads};
   },
   threadReceipt: async input => {
+    const started=Date.now(),scope=provider.scope;
     if(dev?.state.blocked)throw Error('Read acknowledgments paused after Dev reload until you interact.');
     if(!input || Object.keys(input).some(k=>!['id','action','eventId'].includes(k)) || !opaque(input.id) || !['read','unread'].includes(input.action) || input.action==='read' && !opaque(input.eventId))throw Error('Invalid read receipt.');
     const result=await provider.call('receipt',input.id,input.action,input.eventId);
     if(result.id!==input.id || typeof result.hasUnreads!=='boolean')throw Error('Read state unavailable.');
+    if(input.action==='read'&&result.hasUnreads===false)await activityJournal.read(scope,input.id,input.eventId,started);
     return {id:result.id,hasUnreads:result.hasUnreads};
   },
   zoomState: () => zoom.state(),
@@ -170,7 +178,7 @@ const operations = {
   },
   connect: async (candidate, remember = true) => { await connection.connect(candidate, remember); return changed(); },
   setMode: async mode => { const result = await connection.mode(mode); if (!result.needsKey) changed(); return result; },
-  forgetKey: async () => { await connection.forget(); return changed(); },
+  forgetKey: async () => { const scope=provider.scope;await connection.forget();const cleared=await activityJournal.clear(scope);if(cleared.warning)connection.warning+=' Local activity could not be cleared from disk.';return changed(); },
   projects: () => provider.call('projects'),
   cancelMessages: () => { transcriptController.abort(); transcriptController = new AbortController(); previews.reset(); },
   threads: (id, cursor) => provider.call('threads',id,cursor),
@@ -233,7 +241,8 @@ const operations = {
       const receipt=await provider.call('send',id,text.trim(),clientKey,model);
       if(generation!==connection.generation)throw Error('Connection changed.');
       if(!receipt||typeof receipt.id!=='string'||!opaque(receipt.id)||typeof receipt.deduped!=='boolean')throw Error('Invalid send receipt. Delivery is uncertain; retry with the same message ID.');
-      return receipt;
+      const event=await activityJournal.sent(provider.scope,id,clientKey,receipt.id);
+      return {...receipt,activityAt:event.at};
     })();
     sends.set(clientKey,{fingerprint,promise});
     promise.catch(()=>{sends.delete(clientKey);});
@@ -243,6 +252,7 @@ const operations = {
 
 let devAction;
 app.whenReady().then(async () => {
+  activityJournal=new ActivityJournal(app.getPath('userData'));
   const productName = identity.display(app, Boolean(dev));
   connection = new Connection({ directory: app.getPath('userData'),
     storage: hiddenTest || process.platform !== 'darwin' ? { isEncryptionAvailable: () => false } : safeStorage,
@@ -291,7 +301,7 @@ app.whenReady().then(async () => {
           if(context.scope!==provider.scope || context.generation!==provider.generation)throw new ProviderError('stale','Provider or account changed. Reload this view.');
         }
         if (connection.busy && !['status','keymaps','copyText','zoomState','layoutState','saveLayout'].includes(name)) throw Error('Connection change in progress.');
-        const write = ['send','createThread','threadReceipt'].includes(name) || name === 'media' && args[2] === 'save';
+        const write = ['send','createThread','threadReceipt','clearActivityJournal'].includes(name) || name === 'media' && args[2] === 'save';
         if (write) connection.activeWrites++;
         try {
           const value=await handler(...args);

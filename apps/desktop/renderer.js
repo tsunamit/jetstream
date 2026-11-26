@@ -76,7 +76,7 @@ const outgoing = {
       const receipt=await client.send(entry.threadId,entry.text,entry.clientKey,entry.model);
       if(!receipt||typeof receipt.id!=='string'||!receipt.id.length||receipt.id.length>256||typeof receipt.deduped!=='boolean')throw Error('Invalid send receipt. Delivery is uncertain; retry uses the same message ID.');
       entry.receiptId=receipt.id;entry.delivery=receipt.delivery;entry.state='accepted';
-      workActivity.accepted(entry.threadId);
+      workActivity.accepted(entry.threadId,receipt.activityAt);
       conversationControls.sent(entry);
       if(composer.clearSent(entry.threadId,entry.sentDoc))drafts.delete(entry.threadId);
       if(thread?.id===entry.threadId){say(receipt.delivery==='queue'?'Queued · accepted.':receipt.delivery==='local'?(demoMode?'Saved in demo.':'Saved locally.'):'Accepted.',4000);if(liveStream.state==='complete')liveStream.select(thread);if(!messageBusy)loadMessages().catch(fail);}
@@ -548,6 +548,7 @@ desk.status().then(async status => {
   for (const [id, text] of status.drafts || []) drafts.set(id, text);
   demoMode = status.demo;
   providerInfo = status.provider;
+  await workActivity.loadJournal();
   $('send').textContent=providerInfo.capabilities.delivery==='queue'?'Queue reply':'Send reply';
   $('new-thread-button').title=capability('create').supported?'Create conversation':capability('create').reason;
   connectionNotice = status.warning || '';
