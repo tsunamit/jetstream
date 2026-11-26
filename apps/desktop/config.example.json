@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "keymaps": {
+    "version": 3,
+    "leader": "<Space>",
+    "timeout": 900,
+    "mappings": {}
+  },
+  "layout": {
+    "version": 1,
+    "sidebarWidth": 280,
+    "replyHeight": 128,
+    "centeredReading": true
+  },
+  "showToolActivity": true
+}

@@ -2,6 +2,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 
 const mainFiles = new Set(['main.cjs', 'product-identity.cjs', 'preload.cjs', 'connection.cjs', 'api.cjs', 'media.cjs', 'workspace.cjs', 'stream.cjs', 'zoom.cjs', 'layout.cjs', 'demo.cjs', 'stream-demo.cjs', 'keymaps.js', 'sidebar-state.js', 'layout-state.js', 'conversation-settings.js', 'dev-runtime.cjs', 'dev-watch.cjs', 'dev-build.cjs', 'dev-launch.cjs']);
+mainFiles.add('user-config.cjs');
 function classify(name) {
   if (typeof name !== 'string' || path.basename(name) !== name) return null;
   if (/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.css$/.test(name)) return 'style';

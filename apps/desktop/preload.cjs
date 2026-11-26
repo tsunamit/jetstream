@@ -8,6 +8,7 @@ methods.push('layoutState','saveLayout');
 methods.push('threadReceipt','threadReadState');
 methods.push('dev');
 methods.push('conversationMetadata');
+methods.push('userConfig','reloadConfig','saveConfig','openConfig','migrateToolActivity');
 methods.push('providerInfo');
 let providerContext;
 const invoke = name => async (...args) => {
@@ -32,7 +33,12 @@ const providerInvoke = operation => async (...args) => {
     return await ipcRenderer.invoke('desk:'+operation,...args,{providerContext:{scope:context.scope,generation:context.generation}});
   }catch(error){return {error:error.message,code:'provider'};}
 };
-contextBridge.exposeInMainWorld('desk', {provider:{...Object.fromEntries(Object.entries(providerMethods).map(([name,operation])=>[name,providerInvoke(operation)])),onStream},...Object.fromEntries(methods.map(name => [name, invoke(name)])), onDev: callback => {
+contextBridge.exposeInMainWorld('desk', {provider:{...Object.fromEntries(Object.entries(providerMethods).map(([name,operation])=>[name,providerInvoke(operation)])),onStream},...Object.fromEntries(methods.map(name => [name, invoke(name)])), onConfig: callback => {
+  if(typeof callback!=='function')throw Error('Invalid config listener.');
+  const listener=(_event,state)=>callback(state);
+  ipcRenderer.on('desk:config',listener);
+  return ()=>ipcRenderer.removeListener('desk:config',listener);
+}, onDev: callback => {
   if(typeof callback!=='function')throw Error('Invalid Dev listener.');
   const listener=(_event,state)=>callback(state);
   ipcRenderer.on('desk:dev',listener);
