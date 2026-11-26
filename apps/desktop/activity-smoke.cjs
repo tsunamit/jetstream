@@ -80,9 +80,12 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
   assert.equal(await page.evaluate(()=>workActivity.model.sent.has(thread.id)),true,'Accepted send hook records recent reply');
   await app.evaluate(({ipcMain})=>{ipcMain.removeHandler('desk:activity');ipcMain.handle('desk:activity',()=>({error:'Fixture unavailable'}));});
   await page.evaluate(()=>workActivity.open());assert.match(await page.locator('#activity-health').innerText(),/Stale.*Fixture unavailable/);await page.keyboard.press('Escape');
-  await app.evaluate(({ipcMain})=>{ipcMain.removeHandler('desk:activity');ipcMain.handle('desk:activity',()=>new Promise(resolve=>{global.activityRelease=()=>resolve({value:{threads:[],captains:[],projects:[],activity:[]}});}));});
+  await app.evaluate(({ipcMain})=>{global.activityReleases=[];global.activityBoth=new Promise(resolve=>{global.activityBothReady=resolve;});ipcMain.removeHandler('desk:activity');ipcMain.handle('desk:activity',()=>new Promise(resolve=>{activityReleases.push(()=>resolve({value:{threads:[],captains:[],projects:[],activity:[]}}));if(activityReleases.length===2)activityBothReady();}));});
   await page.evaluate(()=>{globalThis.activityOpening=workActivity.open();});await page.locator('#work-activity[open]').waitFor();assert.equal(await page.evaluate(()=>workActivity.loading),true);
-  await page.keyboard.press('Escape');await app.evaluate(()=>global.activityRelease());await page.evaluate(()=>activityOpening);assert.equal(await page.evaluate(()=>workActivity.dialog.open),false);assert.equal(await page.evaluate(()=>workActivity.timer),null);
+  const reopened=await page.evaluate(async()=>{const closed=new Promise(resolve=>activityDialog.addEventListener('close',resolve,{once:true}));activityDialog.close();globalThis.activityReopening=workActivity.open();const request=workActivity.request;await closed;return {open:activityDialog.open,loading:workActivity.loading,sameRequest:request===workActivity.request,focus:document.activeElement.id};});
+  assert.deepEqual(reopened,{open:true,loading:true,sameRequest:true,focus:'activity-board'},'A queued close event must not cancel the reopened panel');
+  await app.evaluate(()=>activityBoth);
+  await page.keyboard.press('Escape');await app.evaluate(()=>activityReleases.forEach(release=>release()));await page.evaluate(()=>Promise.all([activityOpening,activityReopening]));assert.equal(await page.evaluate(()=>workActivity.dialog.open),false);assert.equal(await page.evaluate(()=>workActivity.timer),null);
   assert.deepEqual(errors,[]);console.log('PASS activity hidden rendering, three columns/right preview, known ask/result, recent reply order, selection, responsive bounds, reversible composer/draft/history, Insert isolation, Enter commit, timer cleanup, keymap collision/remap and search split preview');
  }finally{await app?.close();await fs.rm(profile,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
