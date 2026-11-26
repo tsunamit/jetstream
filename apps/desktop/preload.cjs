@@ -6,11 +6,17 @@ methods.push('stream','streamAck');
 methods.push('zoomState');
 methods.push('layoutState','saveLayout');
 methods.push('threadReceipt','threadReadState');
+methods.push('dev');
 contextBridge.exposeInMainWorld('desk', {...Object.fromEntries(methods.map(name => [name, async (...args) => {
   const result = await ipcRenderer.invoke('desk:' + name, ...args);
   if (result.error) throw new Error(result.error);
   return result.value;
-}])), onZoom: callback => {
+}])), onDev: callback => {
+  if(typeof callback!=='function')throw Error('Invalid Dev listener.');
+  const listener=(_event,state)=>callback(state);
+  ipcRenderer.on('desk:dev',listener);
+  return ()=>ipcRenderer.removeListener('desk:dev',listener);
+}, onZoom: callback => {
   if (typeof callback !== 'function') throw Error('Invalid zoom listener.');
   const listener = (_event, state) => callback(state);
   ipcRenderer.on('desk:zoom', listener);

@@ -33,7 +33,7 @@ const readState = {
   visible(){return !document.hidden&&document.hasFocus()&&!document.querySelector('dialog[open]')&&!changingConnection&&$('conversation').contains(document.activeElement)&&transcript.scrollHeight-transcript.scrollTop-transcript.clientHeight<40&&chatAnchor===null;},
   schedule(){clearTimeout(this.timer);this.timer=setTimeout(()=>this.auto(),250);},
   auto(){
-    this.controls();if(!thread||!this.visible())return;
+    this.controls();if(devReload.holdReads||!thread||!this.visible())return;
     const s=this.model.get(thread.id),cursor=this.cursor();
     if(!cursor||s.hold||s.pending||s.attempted===cursor||this.value(thread)!==true)return;
     this.write(thread.id,'read',cursor);

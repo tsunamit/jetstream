@@ -5,6 +5,7 @@ const { download, safeURL, saveName, Previews } = require('./media.cjs');
 const previews = new Previews();
 const { pathToFileURL } = require('node:url');
 const path = require('node:path');
+const dev = !app.isPackaged && process.argv.includes('--dev-launch') ? require('./dev-runtime.cjs').setup({app,args:process.argv,directory:__dirname}) : null;
 const { api } = require('./api.cjs');
 const { demo } = require('./demo.cjs');
 const Keymaps = require('./keymaps.js');
@@ -50,6 +51,7 @@ let readController = new AbortController();
 let transcriptController = new AbortController();
 const liveAPI = () => api(key, fetch, readController.signal);
 function changed() {
+  dev?.clear();
   previews.reset(true);
   streams.stop();
   streams.blocked.clear();
@@ -60,6 +62,7 @@ function changed() {
 }
 
 const operations = {
+  dev: (...args) => {if(!dev || !devAction)throw Error('Dev tools are unavailable in this build.');return devAction(...args);},
   referenceContext: async (kind,id) => {
     if(!['thread','captain'].includes(kind)||typeof id!=='string'||!/^jam_[A-Za-z0-9]{26}$/.test(id))throw Error('Unsupported reference identity.');
     if(demoMode)throw Error('Reference is not in the demo workspace.');
@@ -78,6 +81,7 @@ const operations = {
     return {id,hasUnreads:result.hasUnreads};
   },
   threadReceipt: async input => {
+    if(dev?.state.blocked)throw Error('Read acknowledgments paused after Dev reload until you interact.');
     if(!input || Object.keys(input).some(k=>!['id','action','eventId'].includes(k)) || typeof input.id!=='string' || !/^[A-Za-z0-9_-]{1,160}$/.test(input.id) || !['read','unread'].includes(input.action) || input.action==='read' && (typeof input.eventId!=='string' || !/^[A-Za-z0-9]{26}$/.test(input.eventId)))throw Error('Invalid read receipt.');
     if(demoMode)return {id:input.id,hasUnreads:input.action==='unread'};
     const generation=connection.generation, result=await liveAPI().receipt(input.id,input.action,input.eventId);
@@ -164,7 +168,7 @@ const operations = {
     if (!demoMode) return operations.workspace().then(data=>({...data,activity:[...data.threads,...data.captains].filter(t=>t.status==='working'||t.needsYou||t.owed).map(t=>({id:t.id,threadId:t.id,kind:t.needsYou||t.owed?'needs':'running',title:t.title||t.name||'Untitled',detail:'Current API status · '+WorkTree.status(t),minutes:Math.max(0,(Date.now()-Date.parse(t.lastActivityAt||t.updatedAt))/60000)}))}));
     return fixture.activity();
   },
-  status: () => ({ ...connection.status(), drafts: sessionDrafts.get(Workspace.scope(key, demoMode)) || [] }),
+  status: () => ({ ...connection.status(), drafts: sessionDrafts.get(Workspace.scope(key, demoMode)) || [], dev:dev ? {checkpoint:dev.checkpoint(Workspace.scope(key,demoMode)),notice:dev.state.notice} : null }),
   stashDrafts: value => {
     if (!Array.isArray(value) || value.length > 100 || JSON.stringify(value).length > 3000000 || value.some(row => !Array.isArray(row) || row.length !== 2 || typeof row[0] !== 'string' || row[0].length > 160 || typeof row[1] !== 'string' || row[1].length > 30000)) throw Error('Invalid drafts.');
     sessionDrafts.set(Workspace.scope(key, demoMode), value);
@@ -240,6 +244,7 @@ const operations = {
   }
 };
 
+let devAction;
 app.whenReady().then(async () => {
   connection = new Connection({ directory: app.getPath('userData'),
     storage: hiddenTest || process.platform !== 'darwin' ? { isEncryptionAvailable: () => false } : safeStorage,
@@ -250,9 +255,12 @@ app.whenReady().then(async () => {
   window = new BrowserWindow({
     show: !hiddenTest, focusable: !hiddenTest, paintWhenInitiallyHidden: true,
     width: 1140, height: 760, minWidth: 640, minHeight: 600,
-    title: 'Capy Terminal', backgroundColor: '#151819',
-    webPreferences: { backgroundThrottling: !hiddenTest, preload: path.join(__dirname, 'preload.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false }
+    title: dev ? 'Capy Terminal Dev' : 'Capy Terminal', backgroundColor: '#151819',
+    webPreferences: { backgroundThrottling: !hiddenTest, preload: dev?.preload ?? path.join(__dirname, 'preload.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false }
   });
+  if(dev)devAction=dev.attach(window,{scope:()=>Workspace.scope(key,demoMode),busy:()=>connection.busy||connection.activeWrites>0,quiesce:()=>{
+    streams.stop();previews.reset(true);operations.cancelMessages();readController.abort();readController=new AbortController();workspaceRead=null;
+  }});
   const zoomMenu = {label:'View',submenu:[
     {id:'zoom-in',label:'Zoom In',accelerator:'CommandOrControl+=',click:()=>changeZoom('in')},
     {id:'zoom-out',label:'Zoom Out',accelerator:'CommandOrControl+-',click:()=>changeZoom('out')},
@@ -280,7 +288,7 @@ app.whenReady().then(async () => {
       }
       try {
         if (connection.busy && !['status','keymaps','copyText','zoomState','layoutState','saveLayout'].includes(name)) throw Error('Connection change in progress.');
-        const write = ['send','createThread'].includes(name) || name === 'media' && args[2] === 'save';
+        const write = ['send','createThread','threadReceipt'].includes(name) || name === 'media' && args[2] === 'save';
         if (write) connection.activeWrites++;
         try { return { value: await handler(...args) }; }
         finally { if (write) connection.activeWrites--; }

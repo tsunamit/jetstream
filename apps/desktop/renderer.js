@@ -118,13 +118,14 @@ const keyboardMode = () => {
   if(typeof navigationHints==='function')$('active-keys').textContent=navigationHints();
 };
 
-async function projects(result) {
+async function projects(result, restoring = false) {
   const { items } = result ?? await desk.projects();
   history = [];
   historyIndex = -1;
   project = undefined;
   projectPicker.replaceChildren(...items.map(item => new Option(item.name, item.id)));
   projectPicker.disabled = !items.length;
+  if(restoring)return;
   await selectProject();
 }
 
@@ -321,7 +322,7 @@ function displayThread(item, savedMessages) {
   }
 }
 
-async function loadMessages(older = false, cached = false) {
+async function loadMessages(older = false, cached = false, pageLimit = 5) {
   if (!thread || messageBusy || older && !messageState.before) return;
   clearTimeout(messageTimer);messageTimer=null;
   messageBusy = true;
@@ -351,7 +352,7 @@ async function loadMessages(older = false, cached = false) {
       added += state.items.slice(older ? 0 : prior, older ? state.items.length - prior : undefined).filter(item=>visibleMessage(item) && (typeof item.text==='string' && item.text.trim() || item.attachments?.length)).length;
       pages++;
       if (!progress) { stalled = Boolean(older ? state.before : state.next); break; }
-    } while (pages < 5 && added < 12);
+    } while (pages < pageLimit && added < 12);
     if (request !== messageRequest) return;
     const projected=typeof liveStream!=='undefined'?liveStream.project(state,id):state.items;
     const nodes = await messageNodes(projected, id);
@@ -528,6 +529,7 @@ document.addEventListener('focusin', event => {
 });
 
 desk.status().then(async status => {
+  if(document.readyState==='loading')await new Promise(resolve=>document.addEventListener('DOMContentLoaded',resolve,{once:true}));
   for (const [id, text] of status.drafts || []) drafts.set(id, text);
   demoMode = status.demo;
   connectionNotice = status.warning || '';
@@ -537,6 +539,7 @@ desk.status().then(async status => {
   $('forget-key').disabled = !status.saved && !status.connected;
   $('connect').textContent = demoMode ? 'Connect live' : 'Connect';
   $('connection-state').textContent = demoMode ? 'DEMO · SAMPLE DATA' : status.connected ? 'CONNECTED' + (status.source === 'session' ? ' · SESSION ONLY' : status.source === 'environment' ? ' · ENV' : '') : 'OFFLINE';
+  if (status.dev && await devReload.restore(status)) return;
   if (status.connected) await projects();
   else say('Connect to browse your projects, or launch with --demo for sample data.');
   if (status.warning) say(status.warning);
