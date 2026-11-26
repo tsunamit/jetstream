@@ -8,7 +8,7 @@ const workActivity={
     if(['turn','transcript','status'].includes(frame.event))this.paintSoon();
   },
   read(id,started){this.model.read(id,started);this.paintSoon();},
-  setLayout(layout){this.layout=layout;this.render();this.board.focus({preventScroll:true});},
+  setLayout(layout){this.layout=layout;this.render(true,true);this.board.focus({preventScroll:true});},
   paintSoon(){if(!this.dialog.open||this.paintTimer)return;this.paintTimer=setTimeout(()=>{this.paintTimer=null;if(this.dialog.open)this.render();},100);},
   async open(){
     clearKeySequence();
@@ -19,7 +19,7 @@ const workActivity={
     this.column=0;this.rows=[0,0,0];this.groups=this.model.groups(this.data);
     this.defaultPending=!this.groups.some(items=>items.length);
     const first=this.groups.findIndex(items=>items.length);if(first>=0)this.column=first;
-    this.error='';this.loading=false;this.dialog.showModal();this.render();this.board.focus({preventScroll:true});
+    this.error='';this.loading=false;this.dialog.showModal();this.render(false,true);this.board.focus({preventScroll:true});
     await this.refresh();
   },
   schedule(){clearTimeout(this.timer);this.timer=null;if(this.dialog.open&&!document.hidden)this.timer=setTimeout(()=>this.refresh(),60000);},
@@ -33,7 +33,8 @@ const workActivity={
     }catch(error){if(request===this.request&&this.dialog.open)this.error=error.message||'Refresh failed';}
     finally{if(request===this.request){this.loading=false;if(this.dialog.open){this.render();this.schedule();}}}
   },
-  render(preserve=true){
+  render(preserve=true,reveal=false){
+    const scrolls=[...this.board.querySelectorAll('.activity-rows')].map(node=>node.scrollTop),boardScroll=this.board.scrollTop,previewScroll=$('activity-preview').scrollTop;
     this.dialog.classList.toggle('activity-list',this.layout==='list');
     for(const button of $('activity-view-toggle').children)button.setAttribute('aria-pressed',String(button.dataset.layout===this.layout));
     const identity=preserve?this.selected()?.id:null;
@@ -71,10 +72,11 @@ const workActivity={
     $('activity-open').disabled=!item;
     $('activity-keys').textContent='BROWSE · h/l '+(this.layout==='list'?'sections':'columns')+' · j/k cards · Enter open · Esc cancel';
     this.board.setAttribute('aria-label',this.layout==='list'?'Sectioned work list · j/k cards, h/l sections':'Work columns · h/l columns, j/k cards');
-    if(item){this.board.setAttribute('aria-activedescendant','activity-option-'+this.column+'-'+this.rows[this.column]);$('activity-option-'+this.column+'-'+this.rows[this.column]).scrollIntoView({block:'nearest'});}else this.board.removeAttribute('aria-activedescendant');
+    this.board.querySelectorAll('.activity-rows').forEach((node,index)=>node.scrollTop=scrolls[index]??0);this.board.scrollTop=boardScroll;$('activity-preview').scrollTop=previewScroll;
+    if(item){this.board.setAttribute('aria-activedescendant','activity-option-'+this.column+'-'+this.rows[this.column]);if(reveal)$('activity-option-'+this.column+'-'+this.rows[this.column]).scrollIntoView({block:'nearest',inline:'nearest'});}else this.board.removeAttribute('aria-activedescendant');
   },
   meta(item){const parent=this.data.captains.concat(this.data.threads).find(i=>i.id===item.parentId);return [item.isCaptain?'Captain':item.parentId?'Crew':'Thread',item.code,this.data.projects.find(p=>p.id===item.projectId)?.name,item.parentId?'crew of '+(parent?.title||parent?.name||item.captain?.name||'Captain not loaded'):null].filter(Boolean).join(' · ');},
-  select(column,row=this.rows[column]){this.defaultPending=false;this.column=Math.max(0,Math.min(2,column));this.rows[this.column]=row;this.render(false);this.board.focus({preventScroll:true});},
+  select(column,row=this.rows[column]){this.defaultPending=false;this.column=Math.max(0,Math.min(2,column));this.rows[this.column]=row;this.render(false,true);this.board.focus({preventScroll:true});},
   commit(){const item=this.selected();if(!item)return;this.origin=null;this.dialog.close();openThread(item,{projectId:item.projectId,focus:'conversation'}).catch(fail);},
   key(event){
     if(event.defaultPrevented||event.isComposing||event.ctrlKey||event.metaKey||event.altKey||event.target!==this.board)return;
@@ -99,7 +101,7 @@ const activityHealth=document.createElement('p');activityHealth.id='activity-hea
 const activityTabs=document.createElement('nav');activityTabs.id='activity-tabs';activityTabs.setAttribute('aria-label','Work columns');
 const activityLayout=document.createElement('div');activityLayout.className='activity-layout';
 const activityBoard=document.createElement('div');activityBoard.id='activity-board';activityBoard.tabIndex=0;activityBoard.setAttribute('role','listbox');activityBoard.setAttribute('aria-label','Work columns · h/l columns, j/k rows');
-const activityPreview=document.createElement('aside');activityPreview.id='activity-preview';activityPreview.setAttribute('aria-label','Selected work preview');
+const activityPreview=document.createElement('aside');activityPreview.id='activity-preview';activityPreview.tabIndex=0;activityPreview.setAttribute('aria-label','Selected work preview');
 for(const [tag,id,cls] of [['div','activity-preview-meta','eyebrow'],['h3','activity-preview-title',''],['p','activity-preview-text',''],['p','activity-preview-note','']]){const node=document.createElement(tag);node.id=id;node.className=cls;activityPreview.append(node);}
 activityLayout.append(activityBoard,activityPreview);
 const activityFooter=document.createElement('footer'),activityKeys=document.createElement('span');activityKeys.id='activity-keys';

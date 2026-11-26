@@ -10,6 +10,19 @@ const httpsURL = value => {
   } catch { return null; }
 };
 let diagramId = 0;
+function scrollable(node, label) {
+  node.tabIndex = 0;
+  node.setAttribute('aria-label',label);
+  node.addEventListener('keydown',event => {
+    if(event.defaultPrevented || event.isComposing || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey || event.target!==node)return;
+    if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+    event.preventDefault();
+    if(event.key==='Home')node.scrollLeft=0;
+    else if(event.key==='End')node.scrollLeft=node.scrollWidth;
+    else node.scrollLeft+=event.key==='ArrowLeft'?-48:48;
+  });
+  return node;
+}
 mermaid.initialize({ startOnLoad:false, securityLevel:'strict', theme:'base', htmlLabels:false, suppressErrorRendering:true,
   themeVariables:{darkMode:true, dropShadow:'none', fontFamily:'ui-monospace,SFMono-Regular,Menlo,Consolas,"DejaVu Sans Mono",monospace', fontSize:'14px', primaryColor:'#303638', primaryBorderColor:'#303638', primaryTextColor:'#e7e8e9', secondaryColor:'#29322e', secondaryTextColor:'#e7e8e9', secondaryBorderColor:'#29322e', tertiaryColor:'#24282a', tertiaryTextColor:'#e7e8e9', tertiaryBorderColor:'#24282a', lineColor:'#a2a7ab', textColor:'#e7e8e9', mainBkg:'#303638', nodeBorder:'#303638', actorBkg:'#303638', actorBorder:'#303638', actorTextColor:'#e7e8e9', signalColor:'#a2a7ab', signalTextColor:'#e7e8e9', labelBoxBkgColor:'#24282a', labelBoxBorderColor:'#24282a', labelTextColor:'#e7e8e9', noteBkgColor:'#29322e', noteBorderColor:'#29322e', noteTextColor:'#e7e8e9'},
   flowchart:{htmlLabels:false}, sequence:{useMaxWidth:true}, maxTextSize:20000,
@@ -167,6 +180,7 @@ async function render(item, threadId, scope = () => true) {
     const note=document.createElement('span');note.className='reference-unavailable';note.textContent=(ref.title || ref.path || 'Drive file')+' · No attached copy; Drive browsing is unavailable.';root.append(note);
   }
   for (const pre of root.querySelectorAll('pre')) {
+    scrollable(pre,'Code · scroll with arrow keys');
     const code = pre.querySelector('code');
     if (!code) continue;
     const source = code.textContent;
@@ -186,6 +200,7 @@ async function render(item, threadId, scope = () => true) {
     if (code.classList.contains('language-mermaid')) {
       const diagram = document.createElement('div');
       diagram.className = 'diagram';
+      scrollable(diagram,'Diagram · scroll with arrow keys');
       block.append(diagram);
       try {
         if (source.length > 20000 || /%%\{|^\s*---|\b(click|classDef|linkStyle|style)\s|<|\bhttps?:|\bdata:|@import|url\(/im.test(source)) throw new Error('Unsupported diagram');
@@ -207,6 +222,7 @@ async function render(item, threadId, scope = () => true) {
       } catch { diagram.textContent = 'Diagram unavailable. Source is shown above.'; }
     }
   }
+  for(const table of root.querySelectorAll('table'))scrollable(table,'Table · scroll with arrow keys');
   return root;
 }
-window.richText = {render};
+window.richText = {render,scrollable};

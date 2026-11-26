@@ -177,7 +177,7 @@ function effectiveScope(target = document.activeElement) {
   if(target.matches('.split-handle'))return {scope:'separator',inComposer:false};
   const inComposer = draft.contains(target);
   if (inComposer) return {scope:composer.prompt(target)?'editorPrompt':composer.mode()==='insert'?'composer':'composerNormal',inComposer:true};
-  if (target.closest('#conversation') && target.matches('button,summary,a')) return {scope:'chatControl',inComposer:false};
+  if (target.closest('#conversation') && target.matches('button,summary,a,pre[tabindex],table[tabindex],.diagram[tabindex]')) return {scope:'chatControl',inComposer:false};
   const text=target.matches('input,textarea,select,button,summary,a')&&!target.closest('#threads')||target.isContentEditable;
   return {scope:text?'text':pane==='composer'?'composerWindow':pane==='conversation'?'chat':'navigator',inComposer:false};
 }

@@ -77,7 +77,8 @@ function fuzzy(query, text) {
   return true;
 }
 
-function renderPicker(preserve = true) {
+function renderPicker(preserve = true, reveal = !preserve) {
+  const scroll=$('picker-list').scrollTop,previewScroll=$('picker-preview').scrollTop;
   const identity = preserve ? matches[selected]?.id : null;
   const data = catalog ?? {threads:[],captains:[],activity:[],projects:[]};
   const contexts = CentralSearch.contexts(data);
@@ -127,7 +128,7 @@ function renderPicker(preserve = true) {
       outcome.textContent = item.detail;
       row.append(outcome);
     }
-    row.onclick = () => { selected = index; renderPicker(); browsePicker(); };
+    row.onclick = () => { selected = index; renderPicker(true,true); browsePicker(); };
     row.ondblclick = commitPicker;
     return row;
   }));
@@ -143,9 +144,11 @@ function renderPicker(preserve = true) {
   if (item) {
     if(collection==='centralSearch')$('preview-note').textContent='Titles, available codes and projects · matching crew appears when you type. Preview only; Enter opens the context. No global message search.';
     search.setAttribute('aria-activedescendant', 'picker-option-' + selected);
-    $('picker-option-' + selected).scrollIntoView({ block:'nearest' });
+    if(reveal)$('picker-option-' + selected).scrollIntoView({ block:'nearest',inline:'nearest' });
   } else search.removeAttribute('aria-activedescendant');
   if(item)$('picker-list').setAttribute('aria-activedescendant','picker-option-'+selected);else $('picker-list').removeAttribute('aria-activedescendant');
+  if(!reveal)$('picker-list').scrollTop=scroll;
+  $('picker-preview').scrollTop=previewScroll;
   pickerHints();keyboardMode();
 }
 
