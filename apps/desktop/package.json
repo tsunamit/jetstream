@@ -34,7 +34,7 @@
     "history-smoke": "node history-smoke.cjs",
     "picker-smoke": "node picker-smoke.cjs",
     "postinstall": "install-electron",
-    "pack": "electron-packager . 'Capy Terminal' --platform=darwin --arch=arm64 --out=dist --ignore='^/(dist|build|dev-.*|Capy Terminal Dev\\.command|DEV\\.md|.*-smoke\\.cjs|smoke\\.cjs|.*\\.test\\.cjs|README\\.md|test-support\\.cjs|hidden-proof\\.cjs)$' --app-bundle-id=local.ryan.capy-terminal --overwrite",
+    "pack": "electron-packager . 'Capy Terminal' --platform=darwin --arch=arm64 --out=dist --ignore='^/(dist|build|\\.gitignore|dev-.*|Capy Terminal Dev\\.command|DEV\\.md|.*-smoke\\.cjs|smoke\\.cjs|.*\\.test\\.cjs|README\\.md|test-support\\.cjs|hidden-proof\\.cjs)$' --app-bundle-id=local.ryan.capy-terminal --overwrite",
     "postpack": "codesign --force --deep --sign - 'dist/Capy Terminal-darwin-arm64/Capy Terminal.app'",
     "composer-smoke": "node composer-smoke.cjs",
     "halfpage-smoke": "node halfpage-smoke.cjs",
