@@ -32,7 +32,8 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(()=>CubeIndicator.stats.running());
     const start=await page.evaluate(()=>CubeIndicator.stats.frames());await page.waitForTimeout(220);assert.ok(await page.evaluate(()=>CubeIndicator.stats.frames())>start);
     await page.evaluate(()=>{for(let i=0;i<80;i++)fixtureRow('many-'+i,{status:'working',hasUnreads:false});});await page.waitForFunction(()=>CubeIndicator.stats.hosts()===81);
-    const many=await page.evaluate(()=>CubeIndicator.stats.frames());await page.waitForTimeout(220);const delta=await page.evaluate(()=>CubeIndicator.stats.frames())-many;assert.ok(delta>0&&delta<=8,'Instances share one capped frame clock: '+delta);assert.equal(await page.locator('#cube-working-frame path').count(),1);
+    const sample=await page.evaluate(async()=>{const start=performance.now(),frames=CubeIndicator.stats.frames();await new Promise(resolve=>setTimeout(resolve,220));return {elapsed:performance.now()-start,frames:CubeIndicator.stats.frames()-frames};});
+    assert.ok(sample.frames>0&&sample.frames<=Math.ceil(sample.elapsed*24/1000)+1,'Instances share one capped frame clock: '+JSON.stringify(sample));assert.equal(await page.locator('#cube-working-frame path').count(),1);console.log('Shared clock sample',JSON.stringify(sample));
     await page.evaluate(()=>{for(const [id,row]of fixtureRows)if(id.startsWith('many-'))row.li.remove();});await page.waitForFunction(()=>CubeIndicator.stats.hosts()===1);
     await page.evaluate(()=>{fixtureRows.get('fresh').li.style.transform='translateY(2000px)';});await page.waitForFunction(()=>!CubeIndicator.stats.running());
     const offscreen=await page.evaluate(()=>CubeIndicator.stats.frames());await page.waitForTimeout(150);assert.equal(await page.evaluate(()=>CubeIndicator.stats.frames()),offscreen);
