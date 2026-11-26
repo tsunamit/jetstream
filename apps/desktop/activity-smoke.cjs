@@ -32,6 +32,17 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
   assert.match(await page.locator('#activity-preview-text').innerText(),/Pick A or B/);
   assert.deepEqual(await page.locator('.activity-column h3').allTextContents(),['Needs you · 1','Recently finished · 1','Working · 3']);
   await shot('activity-wide');
+  await page.getByRole('button',{name:'List',exact:true}).click();
+  assert.equal(await page.getByRole('button',{name:'List',exact:true}).getAttribute('aria-pressed'),'true');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-ask');
+  const listBounds=await page.evaluate(()=>({list:$('activity-board').getBoundingClientRect().right,preview:$('activity-preview').getBoundingClientRect().left}));assert.ok(listBounds.list<=listBounds.preview,'Sectioned list stays left of the preview');
+  assert.equal(await page.locator('.activity-column').count(),3);assert.match(await page.locator('#activity-keys').innerText(),/h\/l sections/);
+  await page.keyboard.press('j');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-done');
+  await shot('activity-list');
+  await page.keyboard.press('j');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-reply');await page.keyboard.press('k');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-done');
+  await page.evaluate(()=>{globalThis.activityFixtureThreads=workActivity.data.threads;workActivity.data.threads=workActivity.data.threads.filter(i=>i.id!=='fixture-done');workActivity.select(0,0);});
+  await page.keyboard.press('j');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-reply','List navigation skips empty sections');
+  await page.evaluate(()=>{workActivity.data.threads=activityFixtureThreads;workActivity.render();});await page.keyboard.press('h');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-done');
+  await page.getByRole('button',{name:'Columns',exact:true}).click();assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-done');assert.equal(await page.evaluate(()=>document.activeElement.id),'activity-board');await page.keyboard.press('h');
   await page.keyboard.press('l');assert.match(await page.locator('#activity-preview-text').innerText(),/Fixture result/);assert.match(await page.locator('#activity-preview-meta').innerText(),/crew of Release captain/);
   assert.equal(await page.evaluate(()=>workActivity.model.finished.size),1);await page.keyboard.press('l');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-reply');
   await page.keyboard.press('j');assert.notEqual(await page.evaluate(()=>workActivity.selected().id),'fixture-reply');await page.keyboard.press('k');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-reply');
@@ -44,6 +55,11 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
    const bounds=await page.evaluate(()=>{const r=$('work-activity').getBoundingClientRect();return {right:r.right,bottom:r.bottom,width:innerWidth,height:innerHeight,overflow:document.documentElement.scrollWidth>innerWidth,dialogOverflow:$('work-activity').scrollWidth>$('work-activity').clientWidth};});
    assert.ok(bounds.right<=bounds.width+1&&bounds.bottom<=bounds.height+1,JSON.stringify(bounds));assert.equal(bounds.overflow,false);assert.equal(bounds.dialogOverflow,false);
    if(width===600)await shot('activity-compact');
+   await page.getByRole('button',{name:'List',exact:true}).click();
+   const vertical=await page.evaluate(()=>({overflow:$('work-activity').scrollWidth>$('work-activity').clientWidth,sections:[...document.querySelectorAll('.activity-column')].map(n=>getComputedStyle(n).display),list:$('activity-board').getBoundingClientRect().right,preview:$('activity-preview').getBoundingClientRect().left}));assert.equal(vertical.overflow,false);assert.ok(vertical.sections.every(display=>display!=='none'));
+   if(width>=600)assert.ok(vertical.list<=vertical.preview,'List layout keeps its preview on the right');
+   if(width===600)await shot('activity-list-compact');
+   await page.getByRole('button',{name:'Columns',exact:true}).click();
   }
   await page.keyboard.press('h');assert.equal(await page.evaluate(()=>workActivity.column),1);assert.equal(await page.locator('.activity-column.active').count(),1);
   await app.evaluate(({BrowserWindow},size)=>BrowserWindow.getAllWindows()[0].setContentSize(...size),originalSize);
