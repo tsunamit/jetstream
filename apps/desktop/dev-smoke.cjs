@@ -14,6 +14,9 @@ const {spawn}=require('node:child_process');
     if(entry.isFile()&&/\.(cjs|js|json|css|html)$/.test(entry.name)||entry.name==='assets')await fs.cp(path.join(__dirname,entry.name),path.join(stage,entry.name),{recursive:true});
   }
   await fs.symlink(path.join(__dirname,'node_modules'),path.join(stage,'node_modules'));
+  await fs.writeFile(path.join(stage,'activity.css'),'body { --dev-activity-token: 0; }\n');
+  const html=await fs.readFile(path.join(stage,'index.html'),'utf8');
+  await fs.writeFile(path.join(stage,'index.html'),html.replace('</head>','<link rel="stylesheet" href="./activity.css">\n</head>'));
   let app,stable;
   try {
     app=await _electron.launch({args:[stage,'--demo','--dev-launch','--user-data-dir='+profile]});
@@ -67,6 +70,16 @@ const {spawn}=require('node:child_process');
     await page.waitForFunction(()=>getComputedStyle(document.body).getPropertyValue('--dev-test-token').trim()==='37');
     assert.deepEqual(await page.evaluate(()=>({identity:window.__devLoadIdentity,text:draft.value,selection:composer.snapshot().selection,focus:composer.focused()})),{identity:original.identity,text:original.text,selection:original.selection,focus:true});
     console.log('PASS CSS hot update retains renderer, draft, editor selection and focus');
+    const styleHref=await page.locator('link[rel="stylesheet"]').first().getAttribute('href');
+    await fs.writeFile(path.join(stage,'activity.css'),'body { --dev-activity-token: 47; }\n');
+    await page.waitForFunction(()=>getComputedStyle(document.body).getPropertyValue('--dev-activity-token').trim()==='47');
+    assert.deepEqual(await page.evaluate(()=>({identity:window.__devLoadIdentity,text:draft.value,selection:composer.snapshot().selection,focus:composer.focused()})),{identity:original.identity,text:original.text,selection:original.selection,focus:true});
+    assert.equal(await page.locator('link[rel="stylesheet"]').first().getAttribute('href'),styleHref);
+    assert.equal(await page.locator('link[rel="stylesheet"]').count(),2);
+    const registered=await page.locator('link[rel="stylesheet"]').evaluateAll(links=>links.map(link=>link.getAttribute('href')));
+    await page.evaluate(()=>devReload.style(999,['../outside.css','https://example.com/remote.css','not-registered.css']));
+    assert.deepEqual(await page.locator('link[rel="stylesheet"]').evaluateAll(links=>links.map(link=>link.getAttribute('href'))),registered);
+    console.log('PASS second registered stylesheet updates only its own link and preserves renderer/editor state; unknown paths are ignored');
     const counts=await app.evaluate(()=>globalThis.__devCounts);
     assert.equal(await app.evaluate(({BrowserWindow})=>{
       let prevented=false;
