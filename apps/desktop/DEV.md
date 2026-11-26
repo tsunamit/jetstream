@@ -3,7 +3,7 @@
 Dev runs alongside the installed stable app. It uses the local Electron development runtime, not a newly signed or installed application. Nothing launches until you run the command or open the launcher.
 
 ```sh
-cd /Users/ryan/Developer/capy-terminal
+cd /Users/ryan/Developer/jetstream
 npm run dev
 ```
 

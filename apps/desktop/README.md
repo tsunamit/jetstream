@@ -4,10 +4,10 @@ A keyboard-first Electron client for Capy. It browses projects, threads, and con
 
 ## Run locally on Mac
 
-Canonical development folder: `/Users/ryan/Developer/capy-terminal`. Use Node 22.12+ on this Mac:
+Canonical development folder: `/Users/ryan/Developer/jetstream`. Use Node 22.12+ on this Mac:
 
 ```sh
-cd ~/Developer/capy-terminal
+cd ~/Developer/jetstream
 npm ci
 npm run demo
 ```
@@ -22,13 +22,13 @@ On an Apple Silicon Mac with Node 22.12+, run `npm ci && npm run pack`. This cre
 
 ### Rename compatibility
 
-Jetstream keeps the existing source folder; the name is not a source-directory migration. Stable uses `~/Library/Application Support/Capy Terminal` for both userData and sessionData on macOS, explicitly set before startup. Jetstream Dev retains `~/Library/Application Support/Capy Terminal Dev/profiles/<name>` and never reads stable's profile. Explicit temporary test profiles remain isolated. No config, history, model selection, drafts, encrypted credential files, or Keychain entries are copied or rewritten by the rename.
+The canonical source folder is `/Users/ryan/Developer/jetstream`; the former `/Users/ryan/Developer/capy-terminal` path remains a compatibility symlink for existing launch paths and active Dev sessions. Source-folder naming is separate from profile identity: stable uses `~/Library/Application Support/Capy Terminal` for both userData and sessionData on macOS, explicitly set before startup. Jetstream Dev retains `~/Library/Application Support/Capy Terminal Dev/profiles/<name>` and never reads stable's profile. Explicit temporary test profiles remain isolated. No config, history, model selection, drafts, encrypted credential files, or Keychain entries are copied or rewritten by the rename.
 
 `product-identity.cjs` keeps the legacy runtime name until Electron initializes encryption, then changes the visible app/menu/About/window name at ready. This ordering is security-sensitive: in pinned Electron 45.4.1, [`PostEarlyInitialization`](https://github.com/electron/electron/blob/v45.4.1/shell/browser/electron_browser_main_parts.cc) loads and joins application code before `PostCreateMainMessageLoop` captures `Browser::Get()->GetName()` as the Keychain account and the service suffix ` Safe Storage`. Thus stable still uses account `Capy Terminal` and service `Capy Terminal Safe Storage`; Dev still uses `Capy Terminal Dev` and `Capy Terminal Dev Safe Storage`. Re-audit that lifecycle before upgrading Electron. The application bundle identifier remains `local.ryan.capy-terminal`, including its existing helper identifiers, and signing stays ad-hoc (`codesign --sign -`). Changing an ad-hoc executable can still trigger macOS access-policy prompts; the rename does not bypass those policies or test against a real Keychain.
 
 Lazy encryption initialization keeps those same names: pinned [Chromium 156.0.8078.100 `KeychainPassword`](https://github.com/chromium/chromium/blob/156.0.8078.100/components/os_crypt/common/keychain_password_mac.mm) stores service/account in static strings; `GetPassword()` later reads those strings, not the current application name. Electron's [`Browser::SetName`](https://github.com/electron/electron/blob/v45.4.1/shell/browser/browser.cc) updates only the overridden name and user agent, not those storage strings. No eager Keychain read is needed for the rename.
 
-Packaging creates a new `Jetstream.app` with a `Jetstream` executable, rather than renaming a signed bundle in place. The integration owner alone stages and verifies signatures/resources, installs the branded target, and atomically replaces the former launch location with a compatibility symlink while retaining its previous bundle. Retain every archive backing a running process; do not start a second stable process during that swap. The old launch location can resolve to Jetstream without moving the source folder or discarding an active session. Reload the installed release by quitting and reopening when convenient.
+Packaging creates a new `Jetstream.app` with a `Jetstream` executable, rather than renaming a signed bundle in place. The integration owner alone stages and verifies signatures/resources, installs the branded target, and atomically replaces the former launch location with a compatibility symlink while retaining its previous bundle. Retain every archive backing a running process; do not start a second stable process during that swap. The old launch location can resolve to Jetstream without discarding an active session. Reload the installed release by quitting and reopening when convenient.
 
 Run `npm test && npm run dev-test && npm run branding-smoke && npm run dev-smoke` for mocked profile/crypto migration checks and hidden, temporary-profile UI regressions. These checks never unlock real credentials. See [DEV.md](DEV.md) for the explicit **Jetstream Dev.command** launcher; nothing auto-starts.
 
