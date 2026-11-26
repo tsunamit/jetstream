@@ -48,7 +48,27 @@ test('perspective depth crossing and opaque occlusion are independent of triangl
 });
 test('all turn samples keep the 16px footprint, bounded spacing, margin and monochrome path',()=>{
   for(let i=0;i<256;i++){
-    const image=M.render(i*50);assert.ok(image.count>120);assert.ok(image.bounds.left>=2&&image.bounds.top>=2&&image.bounds.right<=62&&image.bounds.bottom<=62);
+    const image=M.render(i*50);assert.ok(image.count>=7&&image.count<=9);assert.ok(image.bounds.left>=2&&image.bounds.top>=2&&image.bounds.right<=62&&image.bounds.bottom<=62);
     for(const tri of M.triangles(M.frame(i*50).cubies).triangles)for(const p of tri.p)assert.ok(p.x>1&&p.y>1&&p.x<63&&p.y<63);
+  }
+});
+test('visible glyph contains only sparse little round dots at the moving lattice centers',()=>{
+  for(let i=0;i<256;i++){
+    const time=i*50,image=M.render(time),state=M.frame(time);
+    assert.equal((image.path.match(/M/g)||[]).length,image.count);assert.equal((image.path.match(/a/g)||[]).length,image.count*2);assert.ok([...image.path.matchAll(/[A-Za-z]/g)].every(match=>['M','a','Z'].includes(match[0])));
+    assert.equal(new Set(image.dots.map(d=>d.id)).size,image.count);
+    for(const d of image.dots){
+      assert.equal(d.r,2.5);assert.notEqual(d.id,13);assert.deepEqual(d.world,state.cubies.find(c=>c.id===d.id).p);
+      const p=M.project(d.world);near(d.x,Number((32+(p.x-32)*1.4).toFixed(2)));near(d.y,Number((32+(p.y-32)*1.4).toFixed(2)));
+      for(const other of image.dots)if(other!==d)assert.ok(Math.hypot(d.x-other.x,d.y-other.y)>d.r+other.r+1);
+    }
+  }
+});
+test('hidden cube bodies cull rear dots but never become visible material',()=>{
+  for(let i=0;i<=20;i++){
+    const time=160+i*64,state=M.frame(time),geometry=M.triangles(state.cubies,false),hidden=M.raster(geometry.triangles),image=M.render(time);
+    assert.ok(geometry.triangles.every(t=>t.ink===0));assert.equal(hidden.path,'');assert.equal(hidden.count,0);assert.deepEqual(hidden.owners,M.raster(geometry.triangles,true).owners);
+    assert.ok(image.count<state.cubies.filter(c=>c.stickers.some(Boolean)).length);
+    for(const d of image.dots){const p=M.project(d.world);assert.equal(hidden.owners[Math.floor(p.y)*64+Math.floor(p.x)],d.id);}
   }
 });

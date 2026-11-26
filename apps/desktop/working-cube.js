@@ -33,25 +33,25 @@
     const progress=Math.max(0,Math.min(1,(phase-.1)/.8)),ease=progress*progress*(3-2*progress),angle=sequence[index].sign*Math.PI/2*ease;
     return {cubies:progress>=1-1e-12?states[index+1]:pose(states[index],sequence[index],angle),turn:sequence[index],index,phase,angle,total};
   }
-  function triangles(cubies) {
+  function triangles(cubies,stickers=true) {
     const result=[],dots=[];
     for(const c of cubies)for(let axis=0;axis<3;axis++)for(let side=0;side<2;side++){
       const sign=side?1:-1,normal=mul(c.axes[axis],sign),center=add(c.p,mul(normal,HALF)),n=camera(normal),q=camera(center);
       if(dot(n,[-q[0],-q[1],DISTANCE-q[2]])<=0)continue;
       const u=c.axes[(axis+1)%3],v=c.axes[(axis+2)%3];
       const corners=[[-1,-1],[1,-1],[1,1],[-1,1]].map(([a,b])=>project(add(center,add(mul(u,a*HALF),mul(v,b*HALF)))));
-      result.push({p:[corners[0],corners[1],corners[2]],ink:0},{p:[corners[0],corners[2],corners[3]],ink:0});
-      if(!c.stickers[axis*2+side])continue;
+      result.push({p:[corners[0],corners[1],corners[2]],ink:0,owner:c.id},{p:[corners[0],corners[2],corners[3]],ink:0,owner:c.id});
+      if(!stickers||!c.stickers[axis*2+side])continue;
       const lifted=add(center,mul(normal,.002)),middle=project(lifted),ring=Array.from({length:20},(_,i)=>{const a=i*Math.PI/10;return project(add(lifted,add(mul(u,Math.cos(a)*RADIUS),mul(v,Math.sin(a)*RADIUS))));});
       dots.push({id:c.id+':'+axis+':'+side,world:lifted,screen:middle,normal});
-      for(let i=0;i<ring.length;i++)result.push({p:[middle,ring[i],ring[(i+1)%ring.length]],ink:1});
+      for(let i=0;i<ring.length;i++)result.push({p:[middle,ring[i],ring[(i+1)%ring.length]],ink:1,owner:c.id});
     }
     return {triangles:result,dots};
   }
   function raster(input,reverse=false) {
-    const depth=new Float64Array(SIZE*SIZE),ink=new Uint8Array(SIZE*SIZE);
+    const depth=new Float64Array(SIZE*SIZE),ink=new Uint8Array(SIZE*SIZE),owners=new Int16Array(SIZE*SIZE).fill(-1);
     const ordered=[...input].sort((a,b)=>a.p.reduce((s,p)=>s+p.z,0)-b.p.reduce((s,p)=>s+p.z,0));if(reverse)ordered.reverse();
-    for(const {p:[a,b,c],ink:value} of ordered){
+    for(const {p:[a,b,c],ink:value,owner=-1} of ordered){
       const area=(b.y-c.y)*(a.x-c.x)+(c.x-b.x)*(a.y-c.y);if(Math.abs(area)<1e-10)continue;
       const minX=Math.max(0,Math.floor(Math.min(a.x,b.x,c.x))),maxX=Math.min(SIZE-1,Math.ceil(Math.max(a.x,b.x,c.x)));
       const minY=Math.max(0,Math.floor(Math.min(a.y,b.y,c.y))),maxY=Math.min(SIZE-1,Math.ceil(Math.max(a.y,b.y,c.y)));
@@ -59,7 +59,7 @@
         const px=x+.5,py=y+.5,wa=((b.y-c.y)*(px-c.x)+(c.x-b.x)*(py-c.y))/area,wb=((c.y-a.y)*(px-c.x)+(a.x-c.x)*(py-c.y))/area,wc=1-wa-wb;
         if(wa<0||wb<0||wc<0)continue;
         const z=wa*a.z+wb*b.z+wc*c.z,index=y*SIZE+x;
-        if(z>depth[index]){depth[index]=z;ink[index]=value;}
+        if(z>depth[index]){depth[index]=z;ink[index]=value;owners[index]=owner;}
       }
     }
     let path='',count=0,bounds={left:SIZE,top:SIZE,right:0,bottom:0};
@@ -69,11 +69,21 @@
       path+='M'+start+' '+y+'h'+(x-start)+'v1h'+(start-x)+'z';
       bounds.left=Math.min(bounds.left,start);bounds.right=Math.max(bounds.right,x);bounds.top=Math.min(bounds.top,y);bounds.bottom=y+1;
     }
-    return {path,ink,depth,count,bounds};
+    return {path,ink,depth,count,bounds,owners};
   }
   function render(time,duration=1600) {
-    const state=frame(time,duration),geometry=triangles(state.cubies),image=raster(geometry.triangles);
-    return {...image,index:state.index,phase:state.phase,angle:state.angle,turn:state.turn,dots:geometry.dots};
+    const state=frame(time,duration),hidden=raster(triangles(state.cubies,false).triangles),dots=[];
+    const radius=2.5,bounds={left:SIZE,top:SIZE,right:0,bottom:0};
+    for(const c of state.cubies){
+      if(!c.stickers.some(Boolean))continue;
+      const point=project(c.p),index=Math.floor(point.y)*SIZE+Math.floor(point.x);
+      if(hidden.owners[index]!==c.id)continue;
+      const x=Number((SIZE/2+(point.x-SIZE/2)*1.4).toFixed(2)),y=Number((SIZE/2+(point.y-SIZE/2)*1.4).toFixed(2));
+      dots.push({id:c.id,x,y,r:radius,world:c.p});
+      bounds.left=Math.min(bounds.left,x-radius);bounds.right=Math.max(bounds.right,x+radius);bounds.top=Math.min(bounds.top,y-radius);bounds.bottom=Math.max(bounds.bottom,y+radius);
+    }
+    const path=dots.map(d=>'M'+(d.x-radius).toFixed(2)+' '+d.y.toFixed(2)+'a'+radius+' '+radius+' 0 1 0 '+(2*radius)+' 0a'+radius+' '+radius+' 0 1 0 '+(-2*radius)+' 0Z').join('');
+    return {path,count:dots.length,bounds,index:state.index,phase:state.phase,angle:state.angle,turn:state.turn,dots};
   }
   const api={sequence,states,initial,commit,pose,project,frame,triangles,raster,render};
   if(typeof module!=='undefined')module.exports=api;else root.CubeMath=api;
