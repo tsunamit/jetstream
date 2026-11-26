@@ -47,7 +47,7 @@ const navigationFrames = {
     visible:navigationViewport,
     inset:host=>Math.max(0,Math.min(host.clientHeight,host.querySelector('.tree-toolbar').getBoundingClientRect().bottom-host.getBoundingClientRect().top)),
     select:(index,rows)=>{rows[index].focus({preventScroll:true});rows[index].scrollIntoView({block:'nearest'});keyboardMode();},
-    find:navigatorFilter,collapse:()=>navigateTree(false),expand:()=>navigateTree(true)}),
+    find:()=>localFind.open(),collapse:()=>navigateTree(false),expand:()=>navigateTree(true)}),
   picker:Navigation.list({rows:()=>[...$('picker-list').children],index:()=>selected,viewport:()=>$('picker-list'),
     visible:navigationViewport,
     select:index=>{selected=index;renderPicker(true,true);},find:()=>editPickerQuery()}),

@@ -1,5 +1,8 @@
 (function (root) {
   const actions = {
+    localFind: ['Window: find local text', 'localWindow', ['/']],
+    localNextMatch: ['Window: next local match', 'localMatch', ['n']],
+    localPreviousMatch: ['Window: previous local match', 'localMatch', ['N']],
     workActivity: ['Work overview', 'navigation', ['<leader>k']],
     conversationModel: ['Model for next message', 'navigation', ['<leader>tm']],
     centralSearch: ['Search captains and threads', 'navigation', ['<leader>pf']],
@@ -115,10 +118,11 @@
     return config;
   }
   function activeScopes(scope) {
+    if(scope==='localMatch')return ['localMatch','localWindow'];
     return [scope, ...(scope==='pickerBrowse'?['picker']:[]), ...(['navigator','chat','composerNormal'].includes(scope) ? ['navigation'] : []), ...(['navigator','chat','chatControl','composerNormal','composer','composerWindow','separator'].includes(scope) ? ['windows'] : []), ...(!['picker','pickerBrowse'].includes(scope) ? ['global'] : [])];
   }
   function overlaps(a, b) {
-    return ['navigator','chat','composerNormal','composer','picker','pickerBrowse','text'].some(scope => {
+    return ['navigator','chat','composerNormal','composer','picker','pickerBrowse','text','localMatch'].some(scope => {
       const active = activeScopes(scope); return active.includes(a) && active.includes(b);
     });
   }

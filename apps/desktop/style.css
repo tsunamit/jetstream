@@ -195,3 +195,10 @@ body[data-layout] #transcript>:not(#entries){margin-left:var(--content-gutter,24
  #conversation-model{font-size:10px;line-height:1.3;padding:3px 6px}
  #chat-actions>summary,#refresh{font-size:10px;line-height:1.3;padding:2px}
 }
+::highlight(local-find-all) { background: #c6a34c35; }
+::highlight(local-find-current) { background: #d2ae61; color: #121416; }
+.local-find-bar { position: sticky; bottom: 0; z-index: 10; display: flex; flex-wrap: wrap; gap: 6px 12px; align-items: center; padding: 8px; margin: 4px 0 0; border: 1px solid var(--border, #454950); background: var(--panel, #1b1e22); font-size: 12px; }
+.local-find-bar label { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; min-width: 0; }
+.local-find-bar input { width: 200px; max-width: 100%; min-width: 0; }
+.local-find-bar output { overflow-wrap: anywhere; }
+.local-find-bar.committed input { width: 120px; }
