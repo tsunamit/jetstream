@@ -52,7 +52,7 @@ const outgoing = {
     for(const entry of this.items.values()) {
       if(entry.threadId!==id)continue;
       const index=result.findIndex(item=>item.source==='user'&&(item.clientKey===entry.clientKey||entry.receiptId&&item.id===entry.receiptId));
-      const status=entry.state==='sending'?'Sending…':entry.state==='accepted'?(demoMode?'Saved in demo':'Queued · accepted'):'Send not confirmed · retry with the same ID';
+      const status=(entry.state==='sending'?'Sending…':entry.state==='accepted'?(demoMode?'Saved in demo':'Queued · accepted'):'Send not confirmed · retry with the same ID')+(entry.model?' · '+entry.model.modelId:'');
       const item={...(index<0?{id:entry.receiptId||'outgoing-'+entry.clientKey,source:'user',text:entry.text,createdAt:entry.createdAt}:result[index]),outgoingLocal:index<0,outgoingState:entry.state,outgoingStatus:status,clientKey:entry.clientKey};
       if(index<0)result.push(item);else result[index]=item;
     }
@@ -66,9 +66,10 @@ const outgoing = {
     pending=true;entry.state='sending';this.items.set(entry.clientKey,entry);updateSend();this.paint(entry.threadId);
     if(thread?.id===entry.threadId&&['complete','offline'].includes(liveStream.state))liveStream.select(thread);
     try {
-      const receipt=await desk.send(entry.threadId,entry.text,entry.clientKey);
+      const receipt=await desk.send(entry.threadId,entry.text,entry.clientKey,entry.model);
       if(!receipt||typeof receipt.id!=='string'||!/^[A-Za-z0-9]{26}$/.test(receipt.id)||typeof receipt.deduped!=='boolean')throw Error('Invalid send receipt. Delivery is uncertain; retry uses the same message ID.');
       entry.receiptId=receipt.id;entry.state='accepted';
+      conversationControls.sent(entry);
       if(composer.clearSent(entry.threadId,entry.sentDoc))drafts.delete(entry.threadId);
       if(thread?.id===entry.threadId){say(demoMode?'Saved in this demo session.':'Accepted for queue delivery. This does not mean the agent has started.');if(liveStream.state==='complete')liveStream.select(thread);if(!messageBusy)loadMessages().catch(fail);}
     } catch(error) {entry.state='failed';entry.error=error.message;if(thread?.id===entry.threadId)fail(error);}
@@ -295,6 +296,7 @@ function displayThread(item, savedMessages) {
   before = null;
   $('thread-code').textContent = item?.code || item?.id || 'WORKSPACE';
   $('title').textContent = item ? titleOf(item) : 'Open a thread';
+  conversationControls.select(item);
   for (const button of $('threads').querySelectorAll('button')) {
     if (button.dataset.id === item?.id) button.setAttribute('aria-current', 'true');
     else button.removeAttribute('aria-current');
@@ -514,7 +516,7 @@ $('composer').onsubmit = async event => {
   const text = draft.value, sentDoc = composer.view.state.doc;
   const prior=[...outgoing.items.values()].reverse().find(entry=>entry.threadId===id&&entry.text===text.trim()&&entry.state==='failed');
   const clientKey = prior?.clientKey ?? crypto.randomUUID();
-  const entry=outgoing.items.get(clientKey)||{threadId:id,text:text.trim(),clientKey,createdAt:new Date().toISOString()};
+  const entry=outgoing.items.get(clientKey)||{threadId:id,text:text.trim(),clientKey,createdAt:new Date().toISOString(),model:conversationControls.choices.get(id)};
   await outgoing.submit(entry,sentDoc);
 };
 

@@ -18,6 +18,8 @@
   <script defer src="unread-state.js"></script>
   <script defer src="navigation.js"></script>
   <script defer src="renderer.js"></script>
+  <script defer src="conversation-settings.js"></script>
+  <script defer src="conversation-controls.js"></script>
   <script defer src="sidebar.js"></script>
   <script defer src="new-thread.js"></script>
   <script defer src="central-search.js"></script>
@@ -53,7 +55,7 @@
     <div id="sidebar-resize" class="split-handle" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-controls="navigator" title="Drag to resize sidebar · Left/Right · Home/End · double-click to reset"></div>
     <section id="conversation" tabindex="0" aria-label="Conversation">
       <header class="thread-head">
-        <div><div id="thread-code" class="eyebrow">WORKSPACE</div><h1 id="title">Open a thread</h1></div>
+        <div><div id="thread-code" class="eyebrow">WORKSPACE</div><h1 id="title">Open a thread</h1><div class="conversation-controls"><span id="conversation-last-model" class="muted">Model: no conversation selected</span><button id="conversation-model" type="button" disabled>Next message model · Choose</button><span id="conversation-runtime" class="muted">Agent runtime: no conversation selected</span></div></div>
         <div><details id="chat-actions" open><summary>Chat actions</summary><div><button id="chat-cursor">Chat cursor</button><button id="chat-select">Select text</button><button id="chat-copy">Copy selection</button><button id="toggle-tool-activity" type="button" aria-pressed="true">Tool activity: shown</button></div></details><button id="refresh" disabled>Refresh</button><span id="tool-visibility-status" class="muted" hidden>Tool activity hidden</span></div>
       </header>
       <div id="transcript" tabindex="0" aria-label="Transcript">
@@ -114,6 +116,20 @@
       <p id="saved-key-status"></p><button id="forget-key" type="button">Forget saved key and disconnect</button>
       <p>Forget removes this Mac’s saved key, not the API key at Capy. Revoke it separately at Capy if needed.</p>
       <div class="composer-actions"><span id="key-error" role="status"></span><button id="save-key">Connect</button></div>
+    </form>
+  </dialog>
+  <dialog id="conversation-settings" aria-labelledby="conversation-settings-title">
+    <form id="conversation-settings-form">
+      <header><h2 id="conversation-settings-title">Model for next message</h2><button id="model-close" type="button">Cancel</button></header>
+      <p>Applies when your next queued message is picked up. Saving sends nothing and leaves running work unchanged. This choice stays in this session until sent.</p>
+      <p>Current reasoning and modes aren't reported by the API. Unspecified options are left to the server.</p>
+      <p>Retrying an unconfirmed message keeps its original model and message ID.</p>
+      <label for="reply-model">Available model · billing connection</label><select id="reply-model"></select>
+      <label for="reply-reasoning">Reasoning strength</label><select id="reply-reasoning"></select>
+      <fieldset id="reply-modes" aria-label="Model modes"></fieldset>
+      <p class="muted">Daybreak isn't advertised by the catalog. Machine selection is unavailable: the API doesn't report the agent's host or offer workspace moves.</p>
+      <p id="model-error" role="status"></p>
+      <button id="model-reload" type="button">Reload models</button><button id="model-apply" type="submit">Use for next message</button>
     </form>
   </dialog>
   <dialog id="new-thread" aria-labelledby="new-thread-title">

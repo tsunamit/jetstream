@@ -6,6 +6,7 @@ methods.push('stream','streamAck');
 methods.push('zoomState');
 methods.push('layoutState','saveLayout');
 methods.push('threadReceipt','threadReadState');
+methods.push('conversationMetadata');
 contextBridge.exposeInMainWorld('desk', {...Object.fromEntries(methods.map(name => [name, async (...args) => {
   const result = await ipcRenderer.invoke('desk:' + name, ...args);
   if (result.error) throw new Error(result.error);

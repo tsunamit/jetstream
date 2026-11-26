@@ -7,6 +7,7 @@ const compactShell=matchMedia('(max-width:720px)');
 function compactChatActions() { $('chat-actions').open=!compactShell.matches; }
 compactShell.addEventListener('change',compactChatActions);compactChatActions();
 const keyHandlers = {
+  conversationModel:()=>conversationControls.open(),
   chatReference:openCurrentReference,
   resetLayout:()=>layoutView.reset(),
   toggleSidebar:()=>toggleSidebar(),
@@ -83,6 +84,7 @@ function displayKey(token) {
 }
 function keyHint(id) { const label = mappingLabel(id); return label ? ' · ' + label : ''; }
 function renderKeyHints() {
+  conversationControls.render();
   toolActivityHints();
   document.querySelectorAll('.image-hint').forEach(node => { node.textContent = globalThis.imagePreviewHint(); });
   $('keymaps-button').textContent = keyConfigIssue ? 'Keymaps (repair)' : 'Keymaps';
