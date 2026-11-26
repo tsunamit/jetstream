@@ -1,0 +1,22 @@
+const {test}=require('node:test');
+const assert=require('node:assert/strict');
+const K=require('./keymaps.js');
+test('composer Normal app bindings follow configured mappings while editor entry and jump keys remain local',()=>{
+ const config=K.defaults(true),bindings=K.compile(config,true);
+ const allowed=(id,notation,mode='normal',idle=true)=>K.composerBinding(bindings.find(b=>b.id===id&&(!notation||b.notation===notation)),mode,idle,config);
+ for(const [id,notation] of [['windowUp','<leader>wk'],['switchPane','gt'],['centralSearch'],['help']])assert.equal(allowed(id,notation),true);
+ for(const id of ['back','forward','reply'])assert.equal(allowed(id),false);
+ assert.equal(allowed('windowUp','<leader>wk','insert',false),false);
+ assert.equal(allowed('windowUp','<C-k>','insert',false),true);
+ assert.equal(allowed('centralSearch',null,'visual',false),false);
+ assert.equal(allowed('centralSearch',null,'normal',false),false);
+ assert.equal(allowed('resultsGlobal',null,'insert',false),true);
+ assert.equal(allowed('normal','jk','insert',false),false);
+ const custom={...config,leader:',',mappings:{reply:['z'],switchPane:['<leader>x'],windowUp:[]}};
+ const maps=K.compile(custom,true);
+ assert.ok(!maps.some(b=>b.id==='windowUp'));
+ assert.equal(K.composerBinding(maps.find(b=>b.id==='reply'),'normal',true,custom),true);
+ for(const binding of K.compile({...config,mappings:{reply:['i','o','a']}},true).filter(b=>b.id==='reply'))assert.equal(K.composerBinding(binding,'normal',true),false,'Saving explicit inherited Insert entries does not replace Vim o/a');
+ assert.deepEqual(maps.find(b=>b.id==='switchPane').keys,[',','x']);
+ assert.throws(()=>K.compile({...custom,mappings:{switchPane:['<leader>p'] }},true),/conflicts/);
+});

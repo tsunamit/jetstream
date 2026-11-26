@@ -52,7 +52,7 @@ const navigationFrames = {
     visible:navigationViewport,
     select:index=>{selected=index;renderPicker();},find:()=>editPickerQuery()}),
   chat:new Navigation.Controller({
-    Next:()=>chatMove('Down'),Previous:()=>chatMove('Up'),First:()=>chatMove('First'),Last:()=>chatMove('Last'),
+    Next:count=>chatMove('Down',count),Previous:count=>chatMove('Up',count),First:()=>chatMove('First'),Last:()=>chatMove('Last'),
     HalfDown:()=>chatHalfPage(1),HalfUp:()=>chatHalfPage(-1),PageDown:()=>chatHalfPage(1,1),PageUp:()=>chatHalfPage(-1,1),
     Find:openChatSearch,NextMatch:()=>findChat(1),PreviousMatch:()=>findChat(-1),
     LoadOlder:()=>loadMessages(true),LoadNewer:()=>loadMessages()

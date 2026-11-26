@@ -17,7 +17,7 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
       return {separate:$('composer').parentElement===document.querySelector('main')&&!$('conversation').contains(draft),below:reply.top>=chat.bottom-1,left:Math.abs(reply.left-chat.left),width:Math.abs(reply.width-chat.width),nav:nav.bottom>=reply.bottom-1,overflow:document.documentElement.scrollWidth>innerWidth};
     });
     assert.deepEqual(await geometry(),{separate:true,below:true,left:0,width:0,nav:true,overflow:false});
-    await page.locator('#conversation').focus();await keys(' wj');
+    await page.evaluate(()=>composer.normal());await page.locator('#conversation').focus();await keys(' wj');
     assert.deepEqual(await state(),{pane:'composer',focus:'draft-input',mode:'normal',value:''});
     await keys(' wk');assert.equal((await state()).pane,'conversation');
     await keys(' wh');assert.equal((await state()).pane,'navigator');
@@ -31,7 +31,7 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
     await page.keyboard.press('Control+w');await keys('k');assert.equal((await state()).pane,'conversation');
     await keys(' ww');assert.equal((await state()).pane,'composer');await keys(' ww');assert.equal((await state()).pane,'navigator');await keys(' ww');assert.equal((await state()).pane,'conversation');
     await set('alpha');await page.keyboard.press('Control+k');assert.equal((await state()).pane,'conversation');assert.equal((await state()).value,'alpha');
-    await page.keyboard.press('Control+j');assert.equal((await state()).mode,'normal');
+    await page.keyboard.press('Control+j');assert.equal((await state()).mode,'insert');await page.keyboard.press('Escape');
     await set('');await keys('hello jk');assert.equal((await state()).mode,'normal');assert.equal((await state()).value,'hello ');
     await keys('u');assert.equal((await state()).value,'');await page.keyboard.press('Control+r');assert.equal((await state()).value,'hello ');
     await set('');await keys('just joking');assert.equal((await state()).value,'just joking');assert.equal((await state()).mode,'insert');
@@ -51,7 +51,7 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
     await page.evaluate(async()=>{await saveKeymaps({...keyConfig,leader:',',mappings:{...keyConfig.mappings,normal:['<Esc>','jj'],windowLeft:['<A-h>']}});$('conversation').focus();});
     assert.equal(await page.evaluate(()=>mappingLabel('windowDown').includes(', w j')),true);
     assert.equal(await page.evaluate(()=>mappingLabel('normal').includes('j j')),true);
-    await keys(',wj');assert.equal((await state()).pane,'composer');await keys(',wk');assert.equal((await state()).pane,'conversation');
+    await keys(',wj');assert.equal((await state()).pane,'composer');assert.equal((await state()).mode,'normal');await keys(',wk');assert.equal((await state()).pane,'conversation');
     await page.keyboard.press('Control+h');assert.equal((await state()).pane,'conversation');await page.keyboard.press('Alt+h');assert.equal((await state()).pane,'navigator');
     await set('');await keys('jk');assert.equal((await state()).value,'jk');assert.equal((await state()).mode,'insert');await keys('jj');assert.equal((await state()).value,'jk');assert.equal((await state()).mode,'normal');
     await page.locator('#conversation').focus();await keys(' wj');assert.equal((await state()).pane,'conversation');await keys(',wj');assert.equal((await state()).pane,'composer');
@@ -73,7 +73,7 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
     app=await _electron.launch({args:['.','--demo','--user-data-dir='+profile]});
     const restarted=await app.firstWindow();await restarted.getByRole('heading',{name:'Tighten the release checklist'}).waitFor();await restarted.waitForFunction(()=>keyReady&&!navigating);
     assert.deepEqual(await restarted.evaluate(()=>({version:keyConfig.version,reply:keyConfig.mappings.reply,error:keyConfigIssue})),{version:3,reply:['e'],error:''});
-    await restarted.locator('#conversation').focus();await restarted.keyboard.type(' wj');await restarted.keyboard.type('ijk');
+    await restarted.locator('#conversation').focus();await restarted.keyboard.type(' wj');assert.equal(await restarted.evaluate(()=>composer.mode()),'insert');await restarted.keyboard.press('Escape');await restarted.keyboard.type('ijk');
     assert.deepEqual(await restarted.evaluate(()=>({pane,mode:composer.mode(),text:draft.value})),{pane:'composer',mode:'normal',text:''});
     assert.equal(JSON.parse(await fs.readFile(configFile,'utf8')).version,3);
     console.log('PASS: separate reply window, spatial leader/Ctrl-W/Ctrl-hjkl navigation and boundaries, Insert safety, jk escape/undo/literal prefixes/timeout/paste, remaps, prompts/dialog/IME scope, narrow hidden rendering');

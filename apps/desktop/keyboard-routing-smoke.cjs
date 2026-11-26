@@ -1,0 +1,46 @@
+const {_electron}=require('./test-support.cjs');
+const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
+(async()=>{
+ const profile=await fs.mkdtemp(path.join(os.tmpdir(),'capy-routing-'));let app;
+ try {
+  app=await _electron.launch({args:['.','--demo','--test-hidden','--user-data-dir='+profile]});
+  const page=await app.firstWindow();page.setDefaultTimeout(8000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  await page.getByRole('heading',{name:'Tighten the release checklist'}).waitFor();await page.waitForFunction(()=>keyReady&&!navigating);
+  const keys=text=>page.keyboard.type(text);
+  const set=text=>page.evaluate(text=>{composer.normal();composer.setText(text);draft.setSelectionRange(0,0);composer.view.focus();},text);
+  const state=()=>page.evaluate(()=>({mode:composer.mode(),value:draft.value,selection:composer.view.state.selection.toJSON(),pane,sequence:[...keySequence],position:composer.view.state.selection.main.head}));
+  await set('one two three\nlast line');await keys('w');const original=await state();
+  await keys(' wk');assert.equal((await state()).pane,'conversation');
+  await page.keyboard.press('Control+j');assert.equal((await state()).mode,'normal');assert.deepEqual((await state()).selection,original.selection);assert.equal((await state()).value,original.value);
+  await keys('gt');assert.equal((await state()).pane,'navigator');await page.keyboard.press('Control+l');await page.keyboard.press('Control+j');assert.equal((await state()).mode,'normal');
+  await keys(' pf');await page.locator('#picker[open]').waitFor();await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>composer.focused()),true);assert.equal((await state()).mode,'normal');
+  await page.keyboard.press('Escape');await page.keyboard.press('Escape');assert.equal((await state()).pane,'composer');
+  await set('one two three\nlast line');await keys('Ggg');assert.equal((await state()).position,0,'Unbound gg survives the app gt prefix');
+  await keys('2w');assert.equal((await state()).position,8);await keys('0dw');assert.equal((await state()).value,'two three\nlast line');await keys('u');assert.equal((await state()).value,'one two three\nlast line');
+  await keys('r ');assert.equal((await state()).value,' ne two three\nlast line','Literal space after r is owned by Vim');
+  await set('one two three');await keys('2 ');assert.equal((await state()).position,2);assert.equal((await state()).sequence.length,0);
+  await set('one two three');await keys('v ');assert.equal((await state()).mode,'visual');assert.equal((await state()).position,2);assert.equal((await state()).sequence.length,0);await page.keyboard.press('Escape');
+  await keys('ihello world');assert.equal((await state()).mode,'insert');assert.ok((await state()).value.includes('hello world'));
+  const insert=await state();await page.keyboard.press('Control+k');assert.equal((await state()).mode,'insert');await page.keyboard.press('Control+j');assert.deepEqual((await state()).selection,insert.selection);assert.equal((await state()).mode,'insert');
+  await keys('jk');assert.equal((await state()).mode,'normal');
+  await set('one two three');await keys('R a b');assert.equal((await state()).mode,'insert');assert.equal((await state()).sequence.length,0);await page.keyboard.press('Escape');
+  await set('one two three');await keys(' ');await page.keyboard.press('Escape');assert.equal((await state()).sequence.length,0);assert.equal((await state()).position,0);
+  await keys(' ');await page.waitForTimeout(1000);await keys('w');assert.equal((await state()).position,4,'Timed-out app leader is not inserted or replayed');
+  await set('one two three');await keys('g');await page.waitForTimeout(1000);await keys('g');assert.equal((await state()).position,0);assert.equal(await page.evaluate(()=>composer.state().inputState.keyBuffer.length),0);
+  await page.evaluate(async()=>{await saveKeymaps({...keyConfig,leader:',',timeout:300,mappings:{...keyConfig.mappings,switchPane:['zz'],windowUp:['<leader>uk','<C-k>']}});});
+  await set('one two three');await keys(',uk');assert.equal((await state()).pane,'conversation');await page.keyboard.press('Control+j');await keys('zz');assert.equal((await state()).pane,'navigator');
+  await page.keyboard.press('Control+l');await page.keyboard.press('Control+j');await keys(',pf');await page.locator('#picker[open]').waitFor();await page.keyboard.press('Escape');
+  await page.evaluate(async()=>{await saveKeymaps({...keyConfig,mappings:{...keyConfig.mappings,windowUp:[],switchPane:[]}});});
+  await set('one two three');await keys(',uk');assert.equal((await state()).pane,'composer');
+  await page.evaluate(async()=>{await saveKeymaps(Keymaps.defaults(keyMac));});
+  await page.evaluate(async()=>{await saveKeymaps({...keyConfig,mappings:{...keyConfig.mappings,settings:['x']}});globalThis.appDispatches=0;const handler=keyHandlers.settings;keyHandlers.settings=()=>{appDispatches++;handler();};});
+  await set('one two three');await keys('x');assert.equal(await page.evaluate(()=>appDispatches),1);assert.equal((await state()).value,'one two three');await page.keyboard.press('Escape');
+  await page.evaluate(()=>composer.view.contentDOM.dispatchEvent(new KeyboardEvent('keydown',{key:'x',repeat:true,bubbles:true,cancelable:true})));assert.equal((await state()).value,'one two three');assert.equal(await page.evaluate(()=>appDispatches),1,'Recognized app key repeats neither edit nor double-dispatch');
+  await page.evaluate(async()=>{await saveKeymaps(Keymaps.defaults(keyMac));});
+  await set('one two three');const index=await page.evaluate(()=>historyIndex);await keys('gd');await page.keyboard.press('Control+o');await page.keyboard.press('Control+i');assert.equal(await page.evaluate(()=>historyIndex),index,'Editor owns gd and jump history');await page.keyboard.press('Escape');
+  await set('one two three');await page.evaluate(()=>composer.view.contentDOM.dispatchEvent(new KeyboardEvent('keydown',{key:' ',isComposing:true,bubbles:true,cancelable:true})));assert.equal((await state()).sequence.length,0);
+  await page.locator('#keymaps-button').click();await page.locator('#map-leader').fill(',');await page.locator('#map-leader').focus();await page.keyboard.type(' wk');assert.equal((await state()).pane,'composer');await page.keyboard.press('Escape');
+  assert.deepEqual(errors,[]);
+  console.log('PASS composer routing: real Normal/Insert/Visual/replace focus, default/custom/unmapped app keys, engine pending commands, prefix fallback/timeout, Escape, jk, IME, controls/dialog, preserved mode/draft/selection');
+ }finally{await app?.close();await fs.rm(profile,{recursive:true,force:true});}
+})().catch(error=>{console.error(error);process.exitCode=1});
