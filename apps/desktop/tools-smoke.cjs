@@ -37,7 +37,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     await press('vt');await page.waitForFunction(()=>!showToolActivity&&!liveStream.dirty);
     await page.reload();await page.waitForFunction(()=>keyReady&&!messageBusy&&!navigating);
     assert.equal(await page.evaluate(()=>showToolActivity),false);assert.equal(await page.locator('[data-source="tool"]').count(),0);
-    await page.evaluate(async()=>{const config={...keyConfig,mappings:{...keyConfig.mappings,toggleToolActivity:['<leader>vx']}};await desk.saveKeymaps(config);});
+    await page.evaluate(async()=>{const config={...keyConfig,mappings:{...keyConfig.mappings,toggleToolActivity:['<leader>vx']}};await desk.saveKeymaps(config,(await desk.userConfig()).revision);});
     await page.reload();await page.waitForFunction(()=>keyReady&&!messageBusy&&!navigating);assert.match(await page.locator('#toggle-tool-activity').getAttribute('title'),/Space v x/);
     await page.locator('#conversation').focus();await press('vt');assert.equal(await page.evaluate(()=>showToolActivity),false);await press('vx');await page.waitForFunction(()=>showToolActivity);await press('vx');await page.waitForFunction(()=>!showToolActivity&&!liveStream.dirty);
     await app.evaluate(({ipcMain})=>{messageCalls=0;ipcMain.removeHandler('desk:messages');ipcMain.handle('desk:messages',(_event,id,query)=>{messageCalls++;const n=Number(query.after||0);return {value:{items:n<2?[{id:'sparse-tool-'+n,source:'tool',text:'Public tool summary '+n}]:[{id:'sparse-answer',source:'assistant',text:'Visible answer after hidden tool-only pages.'}],cursor:n<2?String(n+1):null}};});});

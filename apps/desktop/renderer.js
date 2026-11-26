@@ -9,7 +9,6 @@ const $ = id => document.getElementById(id);
 const projectPicker = $('projects'), draft = $('draft'), transcript = $('transcript');
 let project, thread, cursor, before, demoMode, pane = 'navigator', pending = false;
 let showToolActivity = true;
-try { showToolActivity = localStorage.getItem('showToolActivity') !== 'false'; } catch {}
 function visibleMessage(item) { return showToolActivity || item.source !== 'tool'; }
 function toolActivityHints() {
   const button = $('toggle-tool-activity');
@@ -19,13 +18,17 @@ function toolActivityHints() {
   button.title = 'Public tool summaries ' + (showToolActivity ? 'shown' : 'hidden') + (typeof keyHint === 'function' ? keyHint('toggleToolActivity') : '');
   $('tool-visibility-status').hidden = showToolActivity;
 }
-function toggleToolActivity() {
+function setToolActivity(value) {
+  if(showToolActivity===value)return;
   const restore = captureToolPresentation(showToolActivity);
-  showToolActivity = !showToolActivity;
-  try { localStorage.setItem('showToolActivity', String(showToolActivity)); } catch { say('Tool visibility changed for this session; could not save it.'); }
+  showToolActivity = value;
   toolActivityHints();
   liveStream.presentationRestore = {id:thread?.id, restore};
   liveStream.needsCommit = true; liveStream.revision++; liveStream.schedule();
+}
+async function toggleToolActivity() {
+  try { applyUserConfig(await desk.saveConfig('showToolActivity',!showToolActivity,userSettings.revision)); }
+  catch(error) { say(error.message); }
 }
 let threadRequest = 0, messageRequest = 0;
 let history = [], historyIndex = -1, navigating = false, updateTarget = null, messagePages = 1;

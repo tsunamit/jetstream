@@ -69,13 +69,16 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
     assert.deepEqual(errors,[]);
     const configFile=await page.evaluate(async()=>(await desk.keymaps()).path);
     await app.close();app=null;
-    await fs.writeFile(configFile,JSON.stringify({version:2,leader:'<Space>',timeout:600,mappings:{navigator:['<C-w>h'],conversation:['<C-w>l'],normal:['<Esc>'],switchPane:['gt','gT'],reply:['e']}}));
+    await fs.unlink(configFile);
+    const legacyFile=path.join(profile,'keymaps.json');
+    await fs.writeFile(legacyFile,JSON.stringify({version:2,leader:'<Space>',timeout:600,mappings:{navigator:['<C-w>h'],conversation:['<C-w>l'],normal:['<Esc>'],switchPane:['gt','gT'],reply:['e']}}));
     app=await _electron.launch({args:['.','--demo','--user-data-dir='+profile]});
     const restarted=await app.firstWindow();await restarted.getByRole('heading',{name:'Tighten the release checklist'}).waitFor();await restarted.waitForFunction(()=>keyReady&&!navigating);
     assert.deepEqual(await restarted.evaluate(()=>({version:keyConfig.version,reply:keyConfig.mappings.reply,error:keyConfigIssue})),{version:3,reply:['e'],error:''});
     await restarted.locator('#conversation').focus();await restarted.keyboard.type(' wj');assert.equal(await restarted.evaluate(()=>composer.mode()),'insert');await restarted.keyboard.press('Escape');await restarted.keyboard.type('ijk');
     assert.deepEqual(await restarted.evaluate(()=>({pane,mode:composer.mode(),text:draft.value})),{pane:'composer',mode:'normal',text:''});
-    assert.equal(JSON.parse(await fs.readFile(configFile,'utf8')).version,3);
+    assert.equal(JSON.parse(await fs.readFile(configFile,'utf8')).keymaps.version,3);
+    assert.equal(JSON.parse(await fs.readFile(legacyFile,'utf8')).version,2,'migration leaves the legacy file intact');
     console.log('PASS: separate reply window, spatial leader/Ctrl-W/Ctrl-hjkl navigation and boundaries, Insert safety, jk escape/undo/literal prefixes/timeout/paste, remaps, prompts/dialog/IME scope, narrow hidden rendering');
   } finally {await app?.close();await fs.rm(profile,{recursive:true,force:true});}
 })().catch(error=>{console.error(error);process.exitCode=1});

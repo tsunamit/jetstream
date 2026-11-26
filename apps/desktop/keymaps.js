@@ -1,5 +1,7 @@
 (function (root) {
   const actions = {
+    openConfig: ['Open settings config in editor', 'navigation', []],
+    reloadConfig: ['Reload settings config', 'navigation', []],
     workActivity: ['Work overview', 'navigation', ['<leader>k']],
     conversationModel: ['Model for next message', 'navigation', ['<leader>tm']],
     centralSearch: ['Search captains and threads', 'navigation', ['<leader>pf']],

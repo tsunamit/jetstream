@@ -37,6 +37,15 @@ class Controller {
     }});
   }
   state() {return this.view && getCM(this.view)?.state.vim;}
+  cancelInsertChord() {
+    for(const {view} of this.views.values()) {
+      const state=getCM(view)?.state.vim;
+      if(!state?.insertMode||!state.inputState)continue;
+      state.inputState.keyBuffer.length=0;
+      state.inputState.changeQueue=undefined;
+      state.expectLiteralNext=false;
+    }
+  }
   mode() {const s=this.state(); return s?.insertMode ? 'insert' : s?.visualMode ? s.visualBlock ? 'visual block' : s.visualLine ? 'visual line' : 'visual' : 'normal';}
   focused() {return this.host.contains(document.activeElement);}
   prompt(target = document.activeElement) {return this.focused() && !this.view?.contentDOM.contains(target);}

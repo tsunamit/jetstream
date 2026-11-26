@@ -38,6 +38,7 @@
   <script defer src="activity-view.js"></script>
   <script defer src="stream-view.js"></script>
   <script defer src="unread-view.js"></script>
+  <script defer src="user-settings.js"></script>
 </head>
 <body>
   <header class="top">
@@ -90,6 +91,8 @@
     <p>To use Space as leader, enter &lt;Space&gt; in the Leader field below, then click Save keymaps. Press Space, r, d for recently done turns; Space, r, t for recent threads overall; Space, r, c for recent captain visits. Space w h/j/k/l moves between windows; Space w w cycles them. These leader sequences run in Normal mode. Command K on Mac (Ctrl Shift K on Linux) is a separate quick opener. Typing jk in composer Insert returns to Normal; configure it in Reply: enter composer normal.</p>
     <p>Use letters (gt), &lt;leader&gt;rd, &lt;Space&gt;, &lt;Enter&gt;, &lt;C-w&gt;h. C = Ctrl, A = Alt, M = Meta (Mac), S = Shift, D = platform primary. Separate alternatives with |. Empty means unmapped. Escape cancels; Tab and native editing shortcuts are reserved.</p></details>
     <p id="keymaps-location" class="muted"></p>
+    <p><button id="open-config" type="button">Open config</button> <button id="reload-config" type="button">Reload config</button></p>
+    <p class="muted">Edit JSON and save to apply. Invalid files keep the last valid settings. If the file changes during a UI edit, the file wins; review and retry. Reset defaults changes only keymaps; Reset pane sizes changes only sizes.</p>
     <fieldset id="layout-settings"><legend>View layout</legend><label><input id="centered-reading" type="checkbox" checked> Centered reading width</label><p class="muted">Adds modest shared gutters to the conversation heading, messages and reply on wide panes. Narrow panes use available space. Reply grows with your draft; dragging sets its saved minimum height.</p><button id="reset-layout" type="button">Reset pane sizes</button><span id="layout-status" role="status"></span></fieldset>
     <form id="keymaps-form">
       <div class="keymaps-options"><label>Leader<input id="map-leader" required></label><label>Sequence timeout (ms)<input id="map-timeout" type="number" min="250" max="3000" required></label></div>
