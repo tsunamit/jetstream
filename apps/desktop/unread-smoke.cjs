@@ -53,20 +53,22 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
   await page.evaluate(()=>{workTree.state.stale=false;workTree.state.updated=Date.now();workTree.render();workTree.focus('a');});
   const sample=async()=>app.evaluate(async({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];if(w.isVisible()||w.isFocused())throw Error('Test window visible');return(await w.capturePage()).toPNG().toString('base64');});
   const indicator=page.locator('[data-id="a"] .work-indicator');
-  assert.equal(await indicator.locator('i').count(),9);
+  assert.equal(await indicator.locator('svg use').count(),1);
   const dimensions=await indicator.boundingBox();
-  const frames=[];for(let i=0;i<4;i++){await indicator.evaluate((n,i)=>{[...n.children].forEach((dot,index)=>{dot.style.animationDelay=-(i*.17+Math.floor(index/3)*.18)+'s';dot.style.animationPlayState='paused';});},i);await page.waitForTimeout(70);frames.push(await sample());assert.deepEqual(await indicator.boundingBox(),dimensions);}
+  await page.emulateMedia({reducedMotion:'reduce'});await page.waitForFunction(()=>!CubeIndicator.stats.running()&&document.querySelector('#cube-working-frame path').getAttribute('d')===CubeMath.render(0,900).path);
+  const times=[900,1260,1350,1440],frames=[];for(const time of times){await page.evaluate(time=>document.querySelector('#cube-working-frame path').setAttribute('d',CubeMath.render(time,900).path),time);await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));frames.push(await sample());assert.deepEqual(await indicator.boundingBox(),dimensions);}
   const rect=await indicator.evaluate(n=>{const p=n.parentElement.getBoundingClientRect();return {x:Math.floor(p.x),y:Math.floor(p.y),width:24,height:24};});
   const motion=await app.evaluate(({nativeImage,BrowserWindow},{frames,rect})=>{const size=BrowserWindow.getAllWindows()[0].getContentSize(),img=nativeImage.createFromBuffer(Buffer.from(frames[0],'base64')),factor=img.getSize().width/size[0];const r=Object.fromEntries(Object.entries(rect).map(([k,v])=>[k,Math.round(v*factor)]));const bits=frames.map(f=>nativeImage.createFromBuffer(Buffer.from(f,'base64')).crop(r).toBitmap());return bits.slice(1).map(b=>b.reduce((n,v,i)=>n+(Math.abs(v-bits[0][i])>40?1:0),0));},{frames,rect});assert.ok(motion.every(n=>n>50),'Spinner must change visible pixels: '+motion);
-  await page.emulateMedia({reducedMotion:'reduce'});
-  assert.deepEqual(await indicator.locator('i').evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).animationName)),Array(9).fill('none'));
-  const staticDots=await indicator.locator('i').evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).transform));await page.waitForTimeout(120);
-  assert.deepEqual(await indicator.locator('i').evaluateAll(nodes=>nodes.map(n=>getComputedStyle(n).transform)),staticDots);
+  const resumeFrame=await page.evaluate(()=>CubeIndicator.stats.frames());
+  await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(frame=>CubeIndicator.stats.running()&&CubeIndicator.stats.frames()>frame,resumeFrame);
+  await page.emulateMedia({reducedMotion:'reduce'});await page.waitForFunction(()=>!CubeIndicator.stats.running()&&document.querySelector('#cube-working-frame path').getAttribute('d')===CubeMath.render(0,900).path);
+  const staticDots=await page.locator('#cube-working-frame path').getAttribute('d');await page.waitForTimeout(120);
+  assert.equal(await page.locator('#cube-working-frame path').getAttribute('d'),staticDots);
   await page.emulateMedia({reducedMotion:'no-preference'});
   if(process.argv[2]){
     await fs.mkdir(process.argv[2],{recursive:true});await fs.writeFile(path.join(process.argv[2],'working-unread.png'),Buffer.from(frames[0],'base64'));
     const crops=await app.evaluate(({nativeImage,BrowserWindow},{frames,rect})=>{const factor=nativeImage.createFromBuffer(Buffer.from(frames[0],'base64')).getSize().width/BrowserWindow.getAllWindows()[0].getContentSize()[0];const r=Object.fromEntries(Object.entries(rect).map(([k,v])=>[k,Math.round(v*factor)]));return frames.map(f=>nativeImage.createFromBuffer(Buffer.from(f,'base64')).crop(r).toDataURL());},{frames,rect});
-    const sheet=await page.evaluate(async crops=>{const canvas=document.createElement('canvas');canvas.width=512;canvas.height=160;const ctx=canvas.getContext('2d');ctx.fillStyle='#1b1d1f';ctx.fillRect(0,0,512,160);ctx.fillStyle='#e7e8e9';ctx.font='13px monospace';for(let i=0;i<crops.length;i++){const image=new Image();image.src=crops[i];await image.decode();ctx.imageSmoothingEnabled=false;ctx.drawImage(image,i*128,10,120,120);ctx.fillText((i*.17).toFixed(2)+'s',i*128+30,150);}return canvas.toDataURL().split(',')[1];},crops);
+    const sheet=await page.evaluate(async ({crops,times})=>{const canvas=document.createElement('canvas');canvas.width=512;canvas.height=160;const ctx=canvas.getContext('2d');ctx.fillStyle='#1b1d1f';ctx.fillRect(0,0,512,160);ctx.fillStyle='#e7e8e9';ctx.font='13px monospace';for(let i=0;i<crops.length;i++){const image=new Image();image.src=crops[i];await image.decode();ctx.imageSmoothingEnabled=false;ctx.drawImage(image,i*128,10,120,120);ctx.fillText(((times[i]-times[0])/1000).toFixed(2)+'s',i*128+30,150);}return canvas.toDataURL().split(',')[1];},{crops,times});
     await fs.writeFile(path.join(process.argv[2],'working-motion-contact.png'),Buffer.from(sheet,'base64'));
   }
   await page.evaluate(()=>showPicker('threads'));assert.equal(await count(),failedCount+1);assert.match(await page.locator('#picker-list').innerText(),/Unread/);assert.ok(await page.locator('#picker-list .working').count()>0);await page.locator('#close-picker').click();

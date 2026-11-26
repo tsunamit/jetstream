@@ -22,8 +22,8 @@ function workIndicator(button,item,fresh = true) {
   if(!icon){icon=document.createElement('span');icon.className='work-indicator';icon.setAttribute('aria-hidden','true');meta.prepend(icon);}
   const active=item.status==='working' && !item.archived && fresh && navigator.onLine;
   icon.classList.toggle('working',active);
-  if(active && icon.children.length!==9){icon.replaceChildren(...Array.from({length:9},()=>document.createElement('i')));}
-  else if(!active)icon.textContent=item.status==='working'?'◇':'·';
+  if(active)CubeIndicator.mount(icon);
+  else {CubeIndicator.unmount(icon);icon.textContent=item.status==='working'?'◇':'·';}
   icon.title=active?'Working':item.status==='working'?'Last known working · not live':'';
   meta.querySelector('.work-stale')?.remove();
   meta.querySelector('.work-queued')?.remove();

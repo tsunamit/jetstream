@@ -97,13 +97,8 @@ dialog{color:var(--ink);background:var(--panel);border:1px solid var(--line);bor
 #toggle-sidebar { flex-shrink:0; font-size:11px; padding:5px 7px; }
 .work-indicator { display:inline-block; width:16px; height:16px; line-height:16px; text-align:center; margin-right:4px; }
 .work-indicator { vertical-align:middle; position:relative; }
-.work-indicator.working i{position:absolute;left:1px;top:1px;width:3px;height:3px;border-radius:1px;background:currentColor;--x:0px;--y:0px;animation:working-cube 1.8s ease-in-out infinite;transform:translate(var(--x),var(--y))}
-.work-indicator.working i:nth-child(3n+2){--x:5px}
-.work-indicator.working i:nth-child(3n){--x:10px}
-.work-indicator.working i:nth-child(n+4){--y:5px;animation-delay:-.18s}
-.work-indicator.working i:nth-child(n+7){--y:10px;animation-delay:-.36s}
-@keyframes working-cube{0%,12%,100%{transform:translate(var(--x),var(--y))}25%,37%{transform:translate(calc(10px - var(--y)),var(--x))}50%,62%{transform:translate(calc(10px - var(--x)),calc(10px - var(--y)))}75%,87%{transform:translate(var(--y),calc(10px - var(--x)))}}
-@media(prefers-reduced-motion:reduce){.work-indicator.working i{animation:none}}
+.work-indicator svg{display:block;width:100%;height:100%;overflow:hidden}
+.cube-defs{position:absolute;width:0;height:0;overflow:hidden;pointer-events:none}
 .thread-unread .thread-name { font-weight:800; }
 .unread-dot { display:inline-block; width:8px; height:8px; border-radius:50%; background:currentColor; margin:0 5px 0 2px; }
 .unread-label { font-weight:800; white-space:nowrap; margin-left:6px; }
