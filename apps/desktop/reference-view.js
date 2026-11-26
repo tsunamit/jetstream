@@ -16,6 +16,10 @@ function referenceRows() {
   const data = workTree.enabled ? workTree.state.data : catalog;
   return [...(data?.threads ?? []),...(data?.captains ?? []).map(item=>({...item,isCaptain:true}))];
 }
+function referenceCodeContext() {
+  const data=workTree.enabled ? workTree.state.data : catalog;
+  return {rows:referenceRows(),prefixes:(data?.projects??[]).map(item=>item.code).filter(Boolean)};
+}
 function currentReference() {
   const focused=document.activeElement.closest('[data-reference],.image-button');
   if(focused?.closest('#entries'))return focused;
@@ -37,7 +41,7 @@ function bindReference(node, target) {
   node.dataset.reference = '';
   node.setAttribute('role','link');
   node.tabIndex = 0;
-  node.title = target.kind === 'external' ? 'Open in external browser' : target.kind === 'unavailable' ? target.reason : 'Open reference · gd / Enter';
+  node.title = target.kind === 'external' ? 'Open in external browser' : target.kind === 'unavailable' ? target.reason : target.kind === 'code' ? 'Resolve reference · gd / Enter' : 'Open reference · gd / Enter';
   referenceNodes.set(node,target);
   node.onclick = event => {
     event.preventDefault();
@@ -115,7 +119,8 @@ async function openReference(target) {
     const rows=referenceRows();
     const {item,error}=ReferenceTargets.entity(target,rows);
     if(item){const hydration=openThread(item,{projectId:item.projectId,focus:'conversation'});if(item.referencePending)await hydrateReferenceContext(item.referencePending,navigationRequest);return hydration;}
-    if(rows.some(row=>row.id===target.id)||target.kind==='code'||!/^jam_[A-Za-z0-9]{26}$/.test(target.id)){say(error);return;}
+    if(target.kind==='code'){say(error.includes('ambiguous') ? error : 'Cannot resolve '+target.id+': no exact thread mapping or supported code lookup. This may also be an issue code.');return;}
+    if(rows.some(row=>row.id===target.id)||!/^jam_[A-Za-z0-9]{26}$/.test(target.id)){say(error);return;}
     const hydration=openThread({id:target.id,title:'Loading reference…',isCaptain:target.kind==='captain',referencePending:target},{focus:'conversation'});
     await hydrateReferenceContext(target,navigationRequest);
     return hydration;
@@ -144,4 +149,4 @@ function openCurrentReference() {
     return openReference({kind:'diagram',threadId:thread.id,messageId:card.dataset.messageId,index:[...card.querySelectorAll('.code-block')].indexOf(node.closest('.code-block')),label:'Diagram source'});
   }
 }
-globalThis.referenceNavigation={bind:bindReference,open:openReference,rows:referenceRows,register:(node,target)=>referenceNodes.set(node,target),preview:target=>showReferenceView(target,true)};
+globalThis.referenceNavigation={bind:bindReference,open:openReference,rows:referenceRows,codes:referenceCodeContext,register:(node,target)=>referenceNodes.set(node,target),preview:target=>showReferenceView(target,true)};

@@ -14,6 +14,6 @@ function message(value) {
   return item;
 }
 const page = (value, normalize) => ({items:value.items.map(normalize),...(value.cursor!==undefined?{cursor:value.cursor}:{}),...(value.beforeCursor!==undefined?{beforeCursor:value.beforeCursor}:{})});
-const project = value => pick(value,['id','name']);
+const project = value => pick(value,['id','name','code']);
 const model = value => ({...pick(value,['id','name','billing','fast','pro','ultrafast']),reasoningModes:Array.isArray(value.reasoningModes)?value.reasoningModes:[]});
 module.exports={conversation,message,page,project,model};

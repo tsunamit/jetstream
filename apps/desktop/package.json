@@ -17,7 +17,7 @@
     "dev": "node dev-launch.cjs",
     "dev-smoke": "node dev-smoke.cjs",
     "dev-test": "node --test dev-watch.test.cjs dev-runtime.test.cjs",
-    "test": "node --test working-cube.test.cjs api.test.cjs media.test.cjs keymaps.test.cjs motions.test.cjs workspace.test.cjs transcript.test.cjs navigation.test.cjs connection.test.cjs navigation-ux.test.cjs stream.test.cjs zoom.test.cjs unread.test.cjs central-search.test.cjs layout-state.test.cjs reference-targets.test.cjs activity-state.test.cjs keyboard-routing.test.cjs chat-geometry.test.cjs conversation-settings.test.cjs product-identity.test.cjs provider.test.cjs",
+    "test": "node --test bare-references.test.cjs working-cube.test.cjs api.test.cjs media.test.cjs keymaps.test.cjs motions.test.cjs workspace.test.cjs transcript.test.cjs navigation.test.cjs connection.test.cjs navigation-ux.test.cjs stream.test.cjs zoom.test.cjs unread.test.cjs central-search.test.cjs layout-state.test.cjs reference-targets.test.cjs activity-state.test.cjs keyboard-routing.test.cjs chat-geometry.test.cjs conversation-settings.test.cjs product-identity.test.cjs provider.test.cjs",
     "keyboard-routing-smoke": "node keyboard-routing-smoke.cjs",
     "wrapped-chat-smoke": "node wrapped-chat-smoke.cjs",
     "working-smoke": "node working-smoke.cjs",
