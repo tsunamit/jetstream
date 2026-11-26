@@ -5,6 +5,20 @@ const devReload = {
     const {transcriptState,...safe}=view;
     return safe;
   },
+  modelChoices(rows) {
+    if(!Array.isArray(rows))return [];
+    const result=[];
+    for(const row of rows.slice(-100)) {
+      if(!Array.isArray(row)||row.length!==2||typeof row[0]!=='string'||!/^[A-Za-z0-9_-]{1,160}$/.test(row[0]))continue;
+      const value=row[1];
+      if(!value||typeof value!=='object'||Array.isArray(value)||Object.keys(value).some(key=>!['modelId','reasoningMode','modes'].includes(key)))continue;
+      if(!Object.hasOwn(value,'modelId')||typeof value.modelId!=='string'||!value.modelId.length||value.modelId.length>256||/[\u0000-\u001f\u007f]/.test(value.modelId))continue;
+      if(value.reasoningMode!==undefined&&(typeof value.reasoningMode!=='string'||!value.reasoningMode.length||value.reasoningMode.length>40||/[\u0000-\u001f\u007f]/.test(value.reasoningMode)))continue;
+      if(value.modes!==undefined&&(!value.modes||typeof value.modes!=='object'||Array.isArray(value.modes)||Object.entries(value.modes).some(([key,flag])=>!['fast','pro','ultrafast'].includes(key)||typeof flag!=='boolean')))continue;
+      result.push([row[0],{modelId:value.modelId,...(value.reasoningMode!==undefined?{reasoningMode:value.reasoningMode}:{}),...(value.modes!==undefined?{modes:{...value.modes}}:{})}]);
+    }
+    return result;
+  },
   capture() {
     if(thread)drafts.set(thread.id,draft.value);
     if(historyIndex>=0)history[historyIndex]=captureView();
@@ -12,6 +26,7 @@ const devReload = {
       drafts:[...drafts],paneStates:[...paneStates],layout:{...layoutView.config},
       navigatorQuery,sidebarHidden:document.body.classList.contains('sidebar-hidden'),
       outgoing:[...outgoing.items.values()].map(({sentDoc,...entry})=>entry),
+      modelChoices:typeof conversationControls==='undefined'?[]:this.modelChoices([...conversationControls.choices]),
       unread:[...readState.model.items],showToolActivity};
   },
   async reload() {
@@ -76,6 +91,7 @@ const devReload = {
       for(const [id,text] of saved.drafts)drafts.set(id,text);
       for(const [id,state] of saved.paneStates){paneStates.set(id,state);if(drafts.has(id)){composer.switchTo(id,drafts.get(id));composer.restore(state.editor);}}
       for(const entry of saved.outgoing)outgoing.items.set(entry.clientKey,entry);
+      if(typeof conversationControls!=='undefined')for(const [id,value] of this.modelChoices(saved.modelChoices))conversationControls.choices.set(id,value);
       showToolActivity=saved.showToolActivity;toolActivityHints();
       await projects(await desk.projects(),true);
       const view=saved.view;

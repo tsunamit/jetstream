@@ -14,6 +14,7 @@ test('classifies safe flat source changes without bundle feedback',()=>{
   for(const name of ['style.css','main.cjs','preload.cjs','renderer.js','composer-entry.js','index.html'])assert.ok(classify(name));
   assert.equal(classify('dev-watch.cjs'),'restart');
   assert.equal(classify('activity.css'),'style');
+  assert.equal(classify('conversation-settings.js'),'restart');
   for(const name of ['../main.cjs','../activity.css','file:///activity.css','activity.css?key=private','rich.bundle.js','composer.bundle.js','dev-watch.test.cjs','send-smoke.cjs','credential.bin'])assert.equal(classify(name),null,name);
 });
 test('style-only update does not rebuild or request renderer reload',async()=>{
