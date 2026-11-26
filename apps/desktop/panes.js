@@ -9,6 +9,13 @@ function resetChatProjection() {
   chatTextCache = null;
   chatProjection = null;
 }
+const chatGeometry=new ChatGeometry.Controller(transcript);
+new ResizeObserver(()=>chatGeometry.reset()).observe(transcript);
+new ResizeObserver(()=>chatGeometry.reset()).observe($('entries'));
+new MutationObserver(()=>chatGeometry.reset()).observe($('entries'),{childList:true,characterData:true,subtree:true});
+new MutationObserver(()=>chatGeometry.reset()).observe(document.body,{attributes:true,attributeFilter:['class','style','data-centered-reading']});
+window.addEventListener('resize',()=>chatGeometry.reset());
+document.fonts.addEventListener('loadingdone',()=>chatGeometry.reset());
 const paneStates = new Map();
 function paneSnapshot() {
   return {chatPosition, chatAnchor, chatLocation:chatLocation(chatPosition), anchorLocation:chatLocation(chatAnchor), chatLineVisual, editor:composer.snapshot(), selection:[draft.selectionStart,draft.selectionEnd]};
@@ -148,9 +155,16 @@ function paintChat(scroll = true) {
     if (rect.top < bounds.top || rect.bottom > bounds.bottom) transcript.scrollTop += rect.top - bounds.top - bounds.height / 3;
   }
 }
-function chatMove(motion) {
+function chatMove(motion,count=1) {
   const projection = chatText(), {text} = projection;
-  chatPosition = Motions.move(text,chatPosition,motion);
+  if(['Down','Up'].includes(motion)) {
+    for(let index=0;index<count;index++){
+      const next=chatGeometry.move(projection,chatPosition,motion==='Down'?1:-1);
+      if(next===chatPosition)break;
+      chatPosition=next;
+    }
+  }
+  else {chatGeometry.reset();chatPosition = Motions.move(text,chatPosition,motion);}
   if (motion === 'Last') chatPosition = Motions.move(text,text.trimEnd().length,'Left');
   if (motion === 'End' && chatPosition > Motions.move(text,chatPosition,'Start')) chatPosition = Motions.move(text,chatPosition,'Left');
   chatPosition = chatOffset(projection,chatPosition,['Left','BackWord','Up','Start','First'].includes(motion));

@@ -31,8 +31,9 @@ const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:
   assert.equal(await page.locator('#mode').innerText(),'CHAT CONTROL');
   await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement.id),'conversation');assert.equal(await page.evaluate(()=>chatPosition),anchor);
   await page.keyboard.press('Enter');await page.keyboard.press('Control+j');assert.equal(await page.evaluate(()=>composer.focused()),true);
-  await page.keyboard.press('Escape');assert.match(await page.locator('#active-keys').innerText(),/Space w w/);assert.doesNotMatch(await page.locator('#active-keys').innerText(),/gt|Show shortcuts/);
-  await page.keyboard.press('?');assert.equal(await page.evaluate(()=>effectiveScope().scope),'editorPrompt');assert.equal(await page.locator('#mode').innerText(),'COMPOSER PROMPT');
+  await page.keyboard.press('Escape');assert.match(await page.locator('#active-keys').innerText(),/g t cycle windows/);assert.doesNotMatch(await page.locator('#active-keys').innerText(),/Show shortcuts/);
+  await page.keyboard.press('?');assert.equal(await page.evaluate(()=>effectiveScope().scope),'dialog');await page.keyboard.press('Escape');
+  await page.keyboard.press('/');assert.equal(await page.evaluate(()=>effectiveScope().scope),'editorPrompt');assert.equal(await page.locator('#mode').innerText(),'COMPOSER PROMPT');
   await page.keyboard.press('Escape');await page.locator('#conversation').focus();
   await page.evaluate(async()=>{
    const body=await richText.render({source:'assistant',text:'![Sample](demo:release-preview)',attachments:[{file:{fileId:'demo-image',sourcePath:'demo:release-preview',name:'sample.png',mediaType:'image/png'}}]},thread.id),article=document.createElement('article');article.append(body);$('entries').replaceChildren(article);chatPosition=chatText().pieces.find(p=>p.object).start;paintChat();

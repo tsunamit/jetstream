@@ -42,9 +42,10 @@ class Controller {
   prompt(target = document.activeElement) {return this.focused() && !this.view?.contentDOM.contains(target);}
   idle() {
     const s=this.state(), i=s?.inputState;
-    return !!s && !s.insertMode && !s.insertModeReturn && !s.expectLiteralNext && !i?.operator && !i?.keyBuffer?.length && !i?.prefixRepeat?.length && !i?.motionRepeat?.length && !i?.registerName;
+    return !!s && !s.insertMode && !s.visualMode && !s.insertModeReturn && !s.expectLiteralNext && !i?.operator && !i?.keyBuffer?.length && !i?.prefixRepeat?.length && !i?.motionRepeat?.length && !i?.registerName;
   }
   switchTo(id,text='') {
+    this.host.dispatchEvent(new Event('editor-context-change'));
     this.id=id ?? '__empty__';
     if (!this.views.has(this.id)) {
       const record={editable:new Compartment(),view:null};
@@ -73,6 +74,7 @@ class Controller {
       ]})});
       record.view=view; view.contentDOM.id='draft-input'; this.views.set(key,record);
       getCM(view).on('vim-mode-change',()=>{
+        this.host.dispatchEvent(new Event('editor-mode-change'));
         this.host.dispatchEvent(new Event('select'));
         if(!getCM(view).state.vim.insertMode) queueMicrotask(()=>view.dispatch({annotations:[isolateHistory.of('full'),Transaction.addToHistory.of(false)]}));
       });

@@ -182,7 +182,17 @@
     if (mods.length && key.length === 1) key = key.toLowerCase();
     return [...mods, key].join(':');
   }
-  const api = {actions, defaults, fallback, migrate, parse, compile, eventKey, activeScopes};
+  function composerBinding(binding, mode, idle) {
+    if (['back','forward'].includes(binding.id) && binding.keys.some(key=>['C:o','C:i'].includes(key))) return false;
+    if (binding.id === 'normal' && binding.keys.every(key=>key.length===1)) return false;
+    const chord = /^(?:[ACMS]:)+/.test(binding.keys[0]);
+    if (binding.scope === 'global' || binding.id === 'send' || binding.id === 'normal') return true;
+    if (binding.scope === 'windows' && chord) return true;
+    if (mode !== 'normal' || !idle) return false;
+    if (binding.id === 'reply' && binding.keys.length===1 && ['i','o','a'].includes(binding.keys[0])) return false;
+    return ['windows','navigation','composerNormal'].includes(binding.scope);
+  }
+  const api = {actions, defaults, fallback, migrate, parse, compile, eventKey, activeScopes, composerBinding};
   if (typeof module !== 'undefined') module.exports = api;
   else root.Keymaps = api;
 })(globalThis);

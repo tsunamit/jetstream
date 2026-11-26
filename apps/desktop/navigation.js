@@ -12,7 +12,7 @@
   class Controller {
     constructor(adapter) {this.adapter=adapter;}
     get capabilities() {return Object.keys(this.adapter);}
-    perform(action) {return this.adapter[action]?.();}
+    perform(action,...args) {return this.adapter[action]?.(...args);}
   }
   function list({rows,index,select,viewport,find,collapse,expand,inset=()=>0,visible=host=>host.getBoundingClientRect()}) {
     const choose = next => {const items=rows();if(items.length)select(Math.max(0,Math.min(items.length-1,next)),items);};

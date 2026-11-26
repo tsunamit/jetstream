@@ -1,5 +1,5 @@
 let keyConfig = Keymaps.defaults(false), keyBindings = [], keyMac = false;
-let keySequence = [], keyTimer, keyScope = '', keyReady = false;
+let keySequence = [], keyTimer, keyScope = '', keyReady = false, keyCount = '';
 let keyConfigIssue = '';
 let keyRepairConfig = null;
 const settingsDialog = $('keymaps-settings');
@@ -44,13 +44,12 @@ Object.assign(keyHandlers, {
   draftUndo:() => editDraft('Undo'),
   draftExit:normalDraft
 });
-for(const [id,[surface,action]] of Object.entries(navigationActions))keyHandlers[id]=()=>navigationFrames[surface].perform(action);
+for(const [id,[surface,action]] of Object.entries(navigationActions))keyHandlers[id]=count=>navigationFrames[surface].perform(action,count);
 keyHandlers.pickerBrowseMode=browsePicker;
 function focusWindow(target) {
   if(target==='navigator' && $('navigator').hidden) toggleSidebar(true,false);
   if (target === pane && effectiveScope().scope !== 'chatControl') return;
-  if (composer.focused()) normalDraft();
-  if (target === 'composer') { if (!draft.disabled) normalDraft(); }
+  if (target === 'composer') { if (!draft.disabled) composer.view.focus(); }
   else if (target === 'navigator') (navigatorRows().find(row=>row.dataset.id===thread?.id) ?? navigatorRows()[0] ?? $('navigator')).focus();
   else $(target).focus();
 }
@@ -65,9 +64,18 @@ function syncComposerBindings() {
 function visibleAction(id,config) {return !(id.startsWith('draft') || ['navigator','conversation'].includes(id)) || Object.hasOwn(config.mappings,id);}
 function clearKeySequence() {
   keySequence = [];
+  keyCount = '';
   clearTimeout(keyTimer);
   keyboardMode();
 }
+function replayEditorPrefix() {
+  if(keyScope!=='composerNormal'||!composer.focused()||composer.mode()!=='normal')return;
+  const leader=Keymaps.parse(keyConfig.leader,'',keyMac)[0];
+  if(keySequence[0]===leader||!keySequence.every(key=>key.length===1))return;
+  const keys=[...keySequence];clearKeySequence();
+  for(const key of keys)composer.key(key);
+}
+function expireKeySequence() {replayEditorPrefix();clearKeySequence();}
 function mappingLabel(id) {
   return keyBindings.filter(b => b.id === id).map(b => b.keys.map(displayKey).join(' ')).join(' / ');
 }
@@ -156,17 +164,10 @@ document.addEventListener('pointerdown', clearKeySequence, true);
 document.addEventListener('compositionstart', clearKeySequence, true);
 window.addEventListener('blur', clearKeySequence);
 document.addEventListener('visibilitychange', clearKeySequence);
+draft.addEventListener('editor-mode-change', clearKeySequence);
+draft.addEventListener('editor-context-change', clearKeySequence);
 function composerAppBinding(binding) {
-  if (binding.id === 'normal' && binding.keys.every(key=>key.length===1)) return false;
-  if (['back','forward'].includes(binding.id) && binding.keys.some(key=>['C:o','C:i'].includes(key))) return false;
-  if (binding.scope === 'windows') {
-    if (binding.keys.length===1 && /^(?:[ACMS]:)+/.test(binding.keys[0])) return true;
-    return composer.idle();
-  }
-  if (binding.scope === 'global' || binding.id === 'send' || binding.id === 'normal' || binding.scope === 'composerNormal') return true;
-  if (!composer.idle()) return false;
-  if (binding.notation.toLowerCase().startsWith('<leader>')) return true;
-  return ['navigator','conversation','switchPane','back','forward'].includes(binding.id) && /^(?:[ACMS]:)+/.test(binding.keys[0]);
+  return Keymaps.composerBinding(binding,composer.mode(),composer.idle());
 }
 function effectiveScope(target = document.activeElement) {
   const dialog = target.closest('dialog[open]') ?? document.querySelector('dialog[open]');
@@ -178,8 +179,8 @@ function effectiveScope(target = document.activeElement) {
   const text=target.matches('input,textarea,select,button,summary,a')&&!target.closest('#threads')||target.isContentEditable;
   return {scope:text?'text':pane==='composer'?'composerWindow':pane==='conversation'?'chat':'navigator',inComposer:false};
 }
-function runKeyAction(id) {
-  try { Promise.resolve(keyHandlers[id]()).catch(fail); }
+function runKeyAction(id,count=1) {
+  try { Promise.resolve(keyHandlers[id](count)).catch(fail); }
   catch(error) { fail(error); }
 }
 document.addEventListener('keydown', event => {
@@ -203,7 +204,6 @@ document.addEventListener('keydown', event => {
     const active=Keymaps.activeScopes(scope), token=Keymaps.eventKey(event);
     const allowed=keyBindings.filter(b=>(active.includes(b.scope) || b.id==='send') && composerAppBinding(b));
     if (!keySequence.length && !allowed.some(b=>b.keys[0]===token)) return;
-    if (['C:o','C:i','C:r','C:d','C:u'].includes(token)) return;
   }
   if (keyScope !== scope) clearKeySequence();
   keyScope = scope;
@@ -211,8 +211,9 @@ document.addEventListener('keydown', event => {
     const token=Keymaps.eventKey(event);
     const windowBinding=keyBindings.find(binding=>binding.scope==='windows' && binding.keys.length===1 && binding.keys[0]===token && composerAppBinding(binding));
     if (windowBinding) {event.preventDefault();event.stopPropagation();clearKeySequence();runKeyAction(windowBinding.id);return;}
-    const appAction=keyBindings.some(b=>(b.scope==='global'||b.id==='send')&&b.keys[0]===token);
-    if(appAction || keySequence.length || composer.mode()!=='insert' && !['h','j','k','l','w','b','e','0','$','ArrowLeft','ArrowRight','ArrowUp','ArrowDown','C:n','C:p','C:d','C:u','C:f','C:b'].includes(token)) {event.preventDefault();event.stopPropagation();clearKeySequence();}
+    const active=Keymaps.activeScopes(scope);
+    const appAction=keyBindings.some(b=>(active.includes(b.scope)||b.id==='send')&&composerAppBinding(b)&&b.keys[0]===token);
+    if(appAction || keySequence.length) {event.preventDefault();event.stopPropagation();clearKeySequence();}
     return;
   }
   if (event.repeat) {
@@ -227,20 +228,24 @@ document.addEventListener('keydown', event => {
   }
   if (event.key === 'Escape' && keySequence.length) { event.preventDefault(); clearKeySequence(); return; }
   const token = Keymaps.eventKey(event);
+  if(scope==='chat' && !keySequence.length && /^[0-9]$/.test(token) && (keyCount || token!=='0') && !keyBindings.some(b=>Keymaps.activeScopes(scope).includes(b.scope)&&b.keys[0]===token)) {
+    event.preventDefault();keyCount=(keyCount+token).slice(0,3);clearTimeout(keyTimer);keyTimer=setTimeout(clearKeySequence,keyConfig.timeout);return;
+  }
   const sequence = [...keySequence, token];
   const active = Keymaps.activeScopes(scope);
   const candidates = keyBindings.filter(b => (!inComposer || composerAppBinding(b)) && (active.includes(b.scope) || inComposer && b.id==='send' || ['chatControl','composerWindow','separator'].includes(scope)&&['back','forward'].includes(b.id) || scope==='chatControl' && (b.scope==='windows'||b.id==='chatReference'&&target.closest('[data-reference],.image-button'))) && sequence.every((key, index) => b.keys[index] === key));
-  if (!candidates.length) { clearKeySequence(); return; }
+  if (!candidates.length) { if(inComposer)replayEditorPrefix();clearKeySequence(); return; }
   event.preventDefault();
   if(inComposer) event.stopPropagation();
   const exact = candidates.find(b => b.keys.length === sequence.length);
   if (exact) {
+    const count=scope==='chat' && ['chatDown','chatUp'].includes(exact.id) ? Number(keyCount)||1 : 1;
     clearKeySequence();
-    runKeyAction(exact.id);
+    runKeyAction(exact.id,count);
   } else {
     keySequence = sequence;
     clearTimeout(keyTimer);
-    keyTimer = setTimeout(clearKeySequence, keyConfig.timeout);
+    keyTimer = setTimeout(expireKeySequence, keyConfig.timeout);
     keyboardMode();
   }
 }, true);
