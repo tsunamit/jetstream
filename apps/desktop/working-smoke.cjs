@@ -25,7 +25,10 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     assert.equal(await page.locator('[data-id="idle"] .work-indicator').isHidden(),true);
     assert.equal(await page.locator('[data-id="fresh"] .work-indicator').getAttribute('aria-hidden'),'true');
     const native=await page.locator('[data-id="fresh"] .work-indicator').boundingBox();assert.equal(native.width,16);assert.equal(native.height,16);
-    await page.evaluate(()=>{document.querySelector('#cube-working-frame path').setAttribute('d',CubeMath.render(1350,900).path);});await settle();await capture('working-3d.png');
+    const circles=await page.evaluate(()=>{const image=CubeMath.render(1350,900);document.querySelector('#cube-working-frame path').setAttribute('d',image.path);return {commands:image.path.match(/[A-Za-z]/g),count:image.count,radii:image.dots.map(d=>d.r)};});
+    assert.ok(circles.commands.every(command=>['M','a','Z'].includes(command)));assert.equal(circles.commands.filter(command=>command==='a').length,circles.count*2);assert.ok(circles.radii.every(radius=>radius===2.5));
+    assert.equal(await page.locator('#cube-working-frame path').evaluate(n=>getComputedStyle(n).stroke),'none');await settle();await capture('working-3d.png');
+    if(process.argv[2]){const png=await app.evaluate(async({BrowserWindow},rect)=>{const w=BrowserWindow.getAllWindows()[0],image=await w.capturePage(),factor=image.getSize().width/w.getContentSize()[0];return image.crop(Object.fromEntries(Object.entries(rect).map(([key,value])=>[key,Math.round(value*factor)]))).toPNG().toString('base64');},native);await fs.writeFile(path.join(process.argv[2],'dots-native.png'),Buffer.from(png,'base64'));}
     await page.emulateMedia({reducedMotion:'no-preference'});await page.waitForFunction(()=>CubeIndicator.stats.running());
     const start=await page.evaluate(()=>CubeIndicator.stats.frames());await page.waitForTimeout(220);assert.ok(await page.evaluate(()=>CubeIndicator.stats.frames())>start);
     await page.evaluate(()=>{for(let i=0;i<80;i++)fixtureRow('many-'+i,{status:'working',hasUnreads:false});});await page.waitForFunction(()=>CubeIndicator.stats.hosts()===81);
@@ -42,10 +45,12 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     await page.emulateMedia({reducedMotion:'no-preference'});assert.equal(await page.evaluate(()=>CubeIndicator.stats.running()),false);
     await page.evaluate(()=>{const {button,item}=fixtureRows.get('fresh');workIndicator(button,item,true);});await page.waitForFunction(()=>CubeIndicator.stats.running());await page.evaluate(()=>fixtureRows.get('fresh').li.remove());await page.waitForFunction(()=>CubeIndicator.stats.hosts()===0&&!CubeIndicator.stats.running());
     await page.evaluate(()=>fixtureRow('zoom',{status:'working',hasUnreads:false}));
+    await page.emulateMedia({reducedMotion:'reduce'});await page.waitForFunction(()=>!CubeIndicator.stats.running());
     await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(640,600));
     for(const zoom of [.5,1,2]){
       await app.evaluate(({BrowserWindow},zoom)=>BrowserWindow.getAllWindows()[0].webContents.setZoomFactor(zoom),zoom);await settle();
       const rect=await page.locator('[data-id="zoom"] .work-indicator').boundingBox();assert.equal(rect.width,16);assert.equal(rect.height,16);
+      if(zoom===1){await page.locator('[data-id="zoom"]').scrollIntoViewIfNeeded();await settle();await capture('dots-minimum.png');}
       assert.deepEqual(await page.evaluate(()=>({x:scrollX,y:scrollY,w:document.documentElement.scrollWidth<=innerWidth,h:document.documentElement.scrollHeight<=innerHeight})),{x:0,y:0,w:true,h:true});
     }
     assert.deepEqual(errors,[]);console.log('PASS 3D working indicator: fresh/stale/offline/archived/settled parity, unread/aria preservation, shared 81-instance clock, removal/offscreen stop, reduced motion, 16px footprint and 50–200% minimum-window root bounds');
