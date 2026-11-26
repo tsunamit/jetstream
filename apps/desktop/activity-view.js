@@ -92,6 +92,7 @@ activityFooter.append(activityKeys,activityOpen);activityDialog.append(activityH
 workActivity.dialog=activityDialog;workActivity.board=activityBoard;
 activityDialog.addEventListener('keydown',event=>workActivity.key(event));
 activityDialog.addEventListener('close',()=>{
+  if(activityDialog.open)return;
   ++workActivity.request;clearTimeout(workActivity.timer);clearTimeout(workActivity.paintTimer);workActivity.timer=null;workActivity.paintTimer=null;workActivity.loading=false;
   if(workActivity.origin){const origin=workActivity.origin;workActivity.origin=null;if(origin.isConnected)origin.focus({preventScroll:true});else if(workActivity.originId)workTree.focus(workActivity.originId);else $('conversation').focus({preventScroll:true});workActivity.restoreReading?.();}
   workActivity.restoreReading=null;
