@@ -14,6 +14,7 @@ const Workspace = require('./workspace.cjs');
 const { Streams } = require('./stream.cjs');
 const { Zoom, action: zoomAction } = require('./zoom.cjs');
 const {LayoutSettings}=require('./layout.cjs');
+const ConversationSettings=require('./conversation-settings.js');
 let layoutSettings;
 let zoom;
 function changeZoom(action) {
@@ -63,6 +64,13 @@ function changed() {
 
 const operations = {
   dev: (...args) => {if(!dev || !devAction)throw Error('Dev tools are unavailable in this build.');return devAction(...args);},
+  conversationMetadata: async id => {
+    if(typeof id!=='string'||!/^[A-Za-z0-9_-]{1,160}$/.test(id))throw Error('Invalid thread ID.');
+    if(demoMode)return {id,lastModelId:null};
+    const generation=connection.generation,result=await liveAPI().thread(id);
+    if(generation!==connection.generation||result.id!==id)throw Error('Conversation changed.');
+    return {id,lastModelId:typeof result.lastModelId==='string'?result.lastModelId:null};
+  },
   referenceContext: async (kind,id) => {
     if(!['thread','captain'].includes(kind)||typeof id!=='string'||!/^jam_[A-Za-z0-9]{26}$/.test(id))throw Error('Unsupported reference identity.');
     if(demoMode)throw Error('Reference is not in the demo workspace.');
@@ -222,18 +230,20 @@ const operations = {
     if (generation !== connection.generation) throw Error('Connection changed.');
     await fs.writeFile(result.filePath, bytes); return {saved:true};
   },
-  send: (id, text, clientKey) => {
+  send: (id, text, clientKey, model) => {
     if (typeof text !== 'string' || !text.trim() || text.length > 30000 ||
         typeof clientKey !== 'string' || !/^[a-f0-9-]{36}$/.test(clientKey)) {
       throw new Error('Invalid message.');
     }
     if(typeof id!=='string'||!/^[A-Za-z0-9_-]{1,160}$/.test(id))throw Error('Invalid thread ID.');
-    const fingerprint=JSON.stringify([id,text.trim()]),prior=sends.get(clientKey);
+    const fingerprint=JSON.stringify([id,text.trim(),model]),prior=sends.get(clientKey);
     if(prior){if(prior.fingerprint!==fingerprint)throw Error('Message ID already belongs to different text.');return prior.promise;}
     if(sends.size>=1000)throw Error('Send limit for this session reached. Reopen to continue.');
     const generation=connection.generation;
     const promise=(async()=>{
-      const receipt=await (demoMode ? fixture : liveAPI()).send(id,text.trim(),clientKey);
+      if(model){const catalog=await operations.models();model=ConversationSettings.selection(model,catalog.items);}
+      if(generation!==connection.generation)throw Error('Connection changed.');
+      const receipt=await (demoMode ? fixture : liveAPI()).send(id,text.trim(),clientKey,model);
       if(generation!==connection.generation)throw Error('Connection changed.');
       if(!receipt||typeof receipt.id!=='string'||!/^[A-Za-z0-9]{26}$/.test(receipt.id)||typeof receipt.deduped!=='boolean')throw Error('Invalid send receipt. Delivery is uncertain; retry with the same message ID.');
       return {id:receipt.id,deduped:receipt.deduped};

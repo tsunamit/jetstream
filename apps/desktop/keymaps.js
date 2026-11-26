@@ -1,6 +1,7 @@
 (function (root) {
   const actions = {
     workActivity: ['Work overview', 'navigation', ['<leader>k']],
+    conversationModel: ['Model for next message', 'navigation', ['<leader>tm']],
     centralSearch: ['Search captains and threads', 'navigation', ['<leader>pf']],
     toggleSidebar: ['Show / hide sidebar', 'navigation', ['<leader>e']],
     toggleToolActivity: ['Show / hide public tool activity', 'navigation', ['<leader>vt']],

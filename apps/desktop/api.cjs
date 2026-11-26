@@ -15,6 +15,10 @@ function api(key, fetcher = fetch, signal) {
       signal: signal ? AbortSignal.any([signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000), body: body && JSON.stringify(body)
     });
     if (!response.ok) {
+      if(body && path.endsWith('/message') && response.status===400){
+        const error=await response.json().catch(()=>({}));
+        if(error._tag==='ModelSelection.Rejected')throw Error('Selected model was rejected. Reload models and choose again. Your draft and next-message choice are preserved.');
+      }
       if (response.status === 429 && !body) {
         const seconds = Number(response.headers.get('retry-after'));
         throw Error('Capy API rate limited. Retry after ' + (Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 3600) : 5) + ' seconds.');
@@ -53,7 +57,7 @@ function api(key, fetcher = fetch, signal) {
       if (typeof fileId !== 'string' || !/^[a-zA-Z0-9_-]{1,160}$/.test(fileId)) throw new Error('Invalid file ID.');
       return request(messages(id) + '/attachments/' + fileId + '/download');
     },
-    send: (id, text, clientKey) => request(messages(id) + '/message', {}, { text, delivery: 'queue', clientKey })
+    send: (id, text, clientKey, model) => request(messages(id) + '/message', {}, { text, delivery: 'queue', clientKey, ...(model?{model}:{}) })
   };
 }
 module.exports = { api };

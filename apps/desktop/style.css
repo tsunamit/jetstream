@@ -161,3 +161,9 @@ body[data-layout] #transcript>:not(#entries){margin-left:var(--content-gutter,24
 .reference-unavailable { display:block; color:var(--muted, #a2a7ab); }
 .reference-viewer { max-width:min(960px,90vw); }
 .reference-viewer pre { white-space:pre-wrap; text-align:left; max-height:65vh; overflow:auto; }
+ .conversation-controls{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px;margin-top:6px;font-size:12px}
+ #conversation-model{font-size:12px;max-width:100%;overflow-wrap:anywhere;text-align:left}
+ #conversation-settings{max-width:660px;max-height:90vh;overflow:auto}
+ #conversation-settings p{font-size:12px;line-height:1.5}
+ #conversation-settings select{display:block;width:100%;margin:6px 0 14px}
+ #reply-modes{display:flex;flex-wrap:wrap;gap:12px;margin:12px 0}
