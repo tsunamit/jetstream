@@ -1,5 +1,5 @@
 const workActivity={
-  model:new ActivityState.State(),data:{threads:[],captains:[],projects:[]},groups:[[],[],[]],column:0,rows:[0,0,0],origin:null,originId:null,request:0,timer:null,paintTimer:null,loading:false,error:'',
+  model:new ActivityState.State(),data:{threads:[],captains:[],projects:[]},groups:[[],[],[]],column:0,rows:[0,0,0],layout:'columns',origin:null,originId:null,request:0,timer:null,paintTimer:null,loading:false,error:'',
   selected(){return this.groups[this.column][this.rows[this.column]];},
   accepted(id){this.model.sentReply(id);this.paintSoon();},
   observed(id,frame){
@@ -8,6 +8,7 @@ const workActivity={
     if(['turn','transcript','status'].includes(frame.event))this.paintSoon();
   },
   read(id,started){this.model.read(id,started);this.paintSoon();},
+  setLayout(layout){this.layout=layout;this.render();this.board.focus({preventScroll:true});},
   paintSoon(){if(!this.dialog.open||this.paintTimer)return;this.paintTimer=setTimeout(()=>{this.paintTimer=null;if(this.dialog.open)this.render();},100);},
   async open(){
     clearKeySequence();
@@ -33,6 +34,8 @@ const workActivity={
     finally{if(request===this.request){this.loading=false;if(this.dialog.open){this.render();this.schedule();}}}
   },
   render(preserve=true){
+    this.dialog.classList.toggle('activity-list',this.layout==='list');
+    for(const button of $('activity-view-toggle').children)button.setAttribute('aria-pressed',String(button.dataset.layout===this.layout));
     const identity=preserve?this.selected()?.id:null;
     this.groups=this.model.groups(this.data);
     if(this.defaultPending){const first=this.groups.findIndex(items=>items.length);if(first>=0){this.column=first;this.defaultPending=false;}}
@@ -62,7 +65,8 @@ const workActivity={
     $('activity-preview-note').textContent='Preview only · does not mark read. Finished tracks observed turns in this app session, not completed tasks.';
     $('activity-health').textContent=(demoMode?'Demo contexts':'Available API contexts')+' · '+(this.error?'Stale · '+this.error:this.loading?'Loading / refreshing…':'Current snapshot')+' · finished: observed turns only · recent replies: this app session · other work: visible 60s polling';
     $('activity-open').disabled=!item;
-    $('activity-keys').textContent='BROWSE · h/l columns · j/k rows · Enter open · Esc cancel';
+    $('activity-keys').textContent='BROWSE · h/l '+(this.layout==='list'?'sections':'columns')+' · j/k cards · Enter open · Esc cancel';
+    this.board.setAttribute('aria-label',this.layout==='list'?'Sectioned work list · j/k cards, h/l sections':'Work columns · h/l columns, j/k cards');
     if(item){this.board.setAttribute('aria-activedescendant','activity-option-'+this.column+'-'+this.rows[this.column]);$('activity-option-'+this.column+'-'+this.rows[this.column]).scrollIntoView({block:'nearest'});}else this.board.removeAttribute('aria-activedescendant');
   },
   meta(item){const parent=this.data.captains.concat(this.data.threads).find(i=>i.id===item.parentId);return [item.isCaptain?'Captain':item.parentId?'Crew':'Thread',item.code,this.data.projects.find(p=>p.id===item.projectId)?.name,item.parentId?'crew of '+(parent?.title||parent?.name||item.captain?.name||'Captain not loaded'):null].filter(Boolean).join(' · ');},
@@ -71,14 +75,22 @@ const workActivity={
   key(event){
     if(event.defaultPrevented||event.isComposing||event.ctrlKey||event.metaKey||event.altKey||event.target!==this.board)return;
     const delta={h:[-1,0],ArrowLeft:[-1,0],l:[1,0],ArrowRight:[1,0],j:[0,1],ArrowDown:[0,1],k:[0,-1],ArrowUp:[0,-1]}[event.key];
-    if(delta){event.preventDefault();this.select(Math.max(0,Math.min(2,this.column+delta[0])),delta[0]?undefined:this.rows[this.column]+delta[1]);}
+    if(delta){
+      event.preventDefault();
+      if(this.layout==='list'&&delta[1]){
+        const cards=this.groups.flatMap((items,column)=>items.map((item,row)=>({column,row}))),index=cards.findIndex(item=>item.column===this.column&&item.row===this.rows[this.column]);
+        const next=cards[Math.max(0,Math.min(cards.length-1,index+delta[1]))];if(next)this.select(next.column,next.row);
+      }else this.select(Math.max(0,Math.min(2,this.column+delta[0])),delta[0]?undefined:this.rows[this.column]+delta[1]);
+    }
     else if(event.key==='Enter'&&!event.repeat){event.preventDefault();this.commit();}
   }
 };
 const activityDialog=document.createElement('dialog');activityDialog.id='work-activity';activityDialog.setAttribute('aria-labelledby','activity-title');
 const activityHeader=document.createElement('header'),activityTitle=document.createElement('h2');activityTitle.id='activity-title';activityTitle.textContent='Work overview';
 const activityClose=document.createElement('button');activityClose.textContent='Esc · Close';activityClose.onclick=()=>activityDialog.close();
-const activityRefresh=document.createElement('button');activityRefresh.textContent='Refresh';activityRefresh.onclick=()=>workActivity.refresh();activityHeader.append(activityTitle,activityRefresh,activityClose);
+const activityViewToggle=document.createElement('div');activityViewToggle.id='activity-view-toggle';activityViewToggle.setAttribute('role','group');activityViewToggle.setAttribute('aria-label','Activity layout');
+for(const [layout,label] of [['columns','Columns'],['list','List']]){const button=document.createElement('button');button.type='button';button.dataset.layout=layout;button.textContent=label;button.onclick=()=>workActivity.setLayout(layout);activityViewToggle.append(button);}
+const activityRefresh=document.createElement('button');activityRefresh.textContent='Refresh';activityRefresh.onclick=()=>workActivity.refresh();activityHeader.append(activityTitle,activityViewToggle,activityRefresh,activityClose);
 const activityHealth=document.createElement('p');activityHealth.id='activity-health';activityHealth.setAttribute('role','status');
 const activityTabs=document.createElement('nav');activityTabs.id='activity-tabs';activityTabs.setAttribute('aria-label','Work columns');
 const activityLayout=document.createElement('div');activityLayout.className='activity-layout';
