@@ -1,5 +1,5 @@
 import {EditorState, EditorSelection, Transaction, Compartment} from '@codemirror/state';
-import {EditorView, drawSelection, keymap} from '@codemirror/view';
+import {EditorView, drawSelection, keymap, placeholder} from '@codemirror/view';
 import {history, defaultKeymap, isolateHistory, undoDepth} from '@codemirror/commands';
 import {vim, Vim, getCM} from '@replit/codemirror-vim';
 
@@ -51,7 +51,7 @@ class Controller {
       const record={editable:new Compartment(),view:null};
       const key=this.id;
       const view = new EditorView({state:EditorState.create({doc:text,extensions:[
-        vim(), drawSelection(), EditorState.allowMultipleSelections.of(true), EditorView.lineWrapping,
+        vim(), drawSelection(), placeholder('Write a reply…'), EditorState.allowMultipleSelections.of(true), EditorView.lineWrapping,
         history({newGroupDelay:1e12,joinToEvent:()=>Boolean(getCM(record.view)?.state.vim.insertMode)}),
         keymap.of(defaultKeymap), record.editable.of(EditorView.editable.of(!this.disabled)),
         EditorView.contentAttributes.of({'aria-label':'Reply','aria-multiline':'true',role:'textbox',spellcheck:'false'}),
@@ -63,10 +63,11 @@ class Controller {
           if(this.id===key&&(update.docChanged||update.geometryChanged))this.measure();
         }),
         EditorView.theme({
-          '&':{fontSize:'15px',backgroundColor:'#292c2f',color:'#e6ebe7',borderRadius:'16px'},
+          '&':{fontSize:'15px',backgroundColor:'transparent',color:'#e6ebe7',borderRadius:'0'},
           '.cm-scroller':{fontFamily:'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace',minHeight:'70px',maxHeight:'180px',overflow:'auto',lineHeight:'1.5'},
-          '.cm-content':{padding:'14px 17px',whiteSpace:'pre-wrap'},'.cm-line':{padding:'0'},
-          '&.cm-focused':{outline:'2px solid #bad3c4'},'.cm-cursor, .cm-dropCursor':{borderLeftColor:'#bad3c4'},
+          '.cm-content':{padding:'6px 0',whiteSpace:'pre-wrap'},'.cm-line':{padding:'0'},
+          '.cm-placeholder':{color:'#7e8788'},
+          '&.cm-focused':{outline:'2px solid #60796c',outlineOffset:'2px'},'.cm-cursor, .cm-dropCursor':{borderLeftColor:'#bad3c4'},
           '.cm-vimMode .cm-fat-cursor':{background:'#bad3c4',color:'#132318',border:'none'},
           '&.cm-focused .cm-selectionBackground,.cm-selectionBackground':{backgroundColor:'#675578'},
           '.cm-panels':{backgroundColor:'#202629',color:'#e6ebe7'},'.cm-panels input':{fontFamily:'inherit'}

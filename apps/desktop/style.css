@@ -127,10 +127,16 @@ article[data-outgoing="failed"] .send-status {color:#f1dfaa;}
 body[data-layout] main{grid-template-columns:var(--sidebar-width,280px) 6px minmax(0,1fr)!important;grid-template-rows:minmax(0,1fr) 6px var(--reply-height,128px);overflow:clip}
 body[data-layout] #navigator{grid-column:1;grid-row:1/4}
 body[data-layout] #conversation{grid-column:3;grid-row:1;overflow:hidden}
-body[data-layout] #composer{grid-column:3;grid-row:3;max-height:none;display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:auto}
-body[data-layout] #composer-title{grid-row:1}
-body[data-layout] #draft{grid-row:2;min-height:42px}
-body[data-layout] .composer-actions{grid-row:3}
+body[data-layout] #composer{grid-column:3;grid-row:3;max-height:none;display:grid;grid-template-rows:minmax(42px,1fr) auto;overflow:auto;padding-top:8px;padding-bottom:10px}
+#composer #composer-title{position:absolute;width:1px;height:1px;padding:0;margin:0;overflow:hidden;clip-path:inset(50%);white-space:nowrap}
+body[data-layout] #draft{grid-row:1;min-height:42px}
+body[data-layout] #composer .composer-actions{grid-row:2;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:4px 12px;margin-top:8px}
+#composer #notice{grid-column:1/-1;font-size:11px;line-height:1.4;color:#f1dfaa}
+#composer #notice:empty{display:none}
+#composer .composer-actions button{grid-row:2;margin:0;border-radius:3px;padding:5px 9px;font-size:12px;line-height:1.5}
+#composer #edit-reply{grid-column:1;justify-self:start;background:transparent;color:var(--muted);padding-left:0}
+#composer #send{grid-column:2;justify-self:end;background:#35443d;color:var(--ink)}
+#composer #draft .cm-content{padding:6px 0!important}
 body[data-layout] #draft .cm-editor{height:100%;min-height:0}
 body[data-layout] #draft .cm-scroller{height:100%;min-height:0!important;max-height:none}
 body[data-layout] .thread-head{max-height:var(--chat-head-max,180px)}
