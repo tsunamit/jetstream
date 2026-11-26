@@ -93,7 +93,7 @@ const devReload = {
       for(const entry of saved.outgoing)outgoing.items.set(entry.clientKey,entry);
       if(typeof conversationControls!=='undefined')for(const [id,value] of this.modelChoices(saved.modelChoices))conversationControls.choices.set(id,value);
       showToolActivity=saved.showToolActivity;toolActivityHints();
-      await projects(await desk.projects(),true);
+      await projects(await client.projects(),true);
       const view=saved.view;
       navigatorQuery=saved.navigatorQuery;
       toggleSidebar(!saved.sidebarHidden,false);

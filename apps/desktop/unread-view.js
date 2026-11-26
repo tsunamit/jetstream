@@ -28,12 +28,12 @@ const readState = {
     const items=liveStream.record.merge(messageState.items),last=items.at(-1);
     if(!last || !$('entries').querySelector('[data-message-id="'+CSS.escape(last.id)+'"]'))return null;
     const value=liveStream.record.cursors.get(last.id);
-    return typeof value==='string'&&/^[A-Za-z0-9]{26}$/.test(value)?value:null;
+    return typeof value==='string'&&value.length>0&&value.length<=256?value:null;
   },
   visible(){return !document.hidden&&document.hasFocus()&&!document.querySelector('dialog[open]')&&!changingConnection&&$('conversation').contains(document.activeElement)&&transcript.scrollHeight-transcript.scrollTop-transcript.clientHeight<40&&chatAnchor===null;},
   schedule(){clearTimeout(this.timer);this.timer=setTimeout(()=>this.auto(),250);},
   auto(){
-    this.controls();if(devReload.holdReads||!thread||!this.visible())return;
+    this.controls();if(!capability('read').supported||devReload.holdReads||!thread||!this.visible())return;
     const s=this.model.get(thread.id),cursor=this.cursor();
     if(!cursor||s.hold||s.pending||s.attempted===cursor||this.value(thread)!==true)return;
     this.write(thread.id,'read',cursor);
@@ -42,11 +42,12 @@ const readState = {
     const s=this.model.get(id);if(s.pending)return;
     const started=Date.now(),revision=this.model.begin(id,action);if(action==='read')s.attempted=eventId;
     this.controls();
-    try{const result=await desk.threadReceipt({id,action,...(eventId?{eventId}:{})});this.model.finish(id,revision,result);if(action==='read'&&result?.hasUnreads===false)workActivity.read(id,started);}
+    try{const result=await client.markRead({id,action,...(eventId?{eventId}:{})});this.model.finish(id,revision,result);if(action==='read'&&result?.hasUnreads===false)workActivity.read(id,started);}
     catch(error){this.model.finish(id,revision,null,error);say('Read status was not synced. Use Mark read/unread to retry.');}
     this.paint();this.schedule();
   },
   explicit(action){
+    if(!capability('read').supported){say(capability('read').reason);return;}
     const row=document.activeElement.closest('#threads button');
     if(row?.dataset.kind==='project'){say('Choose a conversation before changing read status. Project rows are groups only.');return;}
     const id=row?.dataset.id||thread?.id;
@@ -63,18 +64,19 @@ const readState = {
   async refresh(id){
     if(this.refreshing||demoMode||changingConnection||document.hidden||thread?.id!==id)return;
     this.refreshing=true;this.lastRefresh=Date.now();const revision=this.model.version;
-    try{const result=await desk.threadReadState(id);this.model.accept(result,revision);this.paint();this.schedule();}catch{}
+    try{const result=await client.readState(id);this.model.accept(result,revision);this.paint();this.schedule();}catch{}
     finally{this.refreshing=false;}
   },
   controls(){
     const s=thread?this.model.get(thread.id):null,value=thread?this.value(thread):undefined;
     $('read-health').textContent=!thread?'':s.pending?'Syncing read status…':s.error|| (s.hold?'Marked unread · held until revisit':value===true?'Unread':value===false?'Read':'Read status unavailable');
-    $('read-status').textContent=s?.pending?'Syncing…':value===true?'● Unread':value===false?'Read':'Read ?';$('read-status').disabled=!thread;
-    $('mark-read').disabled=!thread||s.pending||!this.cursor();$('mark-unread').disabled=!thread||s.pending;
+    $('read-status').textContent=s?.pending?'Syncing…':value===true?'● Unread':value===false?'Read':'Read ?';$('read-status').disabled=!thread||!capability('read').supported;
+    $('read-status').title=capability('read').supported?'Conversation read status and actions':capability('read').reason;
+    $('mark-read').disabled=!capability('read').supported||!thread||s.pending||!this.cursor();$('mark-unread').disabled=!capability('read').supported||!thread||s.pending;
   }
 };
 const readControls=document.createElement('dialog');readControls.id='read-controls';readControls.setAttribute('aria-labelledby','read-title');
-const readTitle=document.createElement('h2');readTitle.id='read-title';readTitle.textContent='Thread read status';readControls.append(readTitle);
+const readTitle=document.createElement('h2');readTitle.id='read-title';readTitle.textContent='Conversation read status';readControls.append(readTitle);
 for(const [id,label,action] of [['mark-read','Mark read','read'],['mark-unread','Mark unread','unread']]){const b=document.createElement('button');b.id=id;b.textContent=label;b.onclick=()=>readState.explicit(action);readControls.append(b);}
 const readHealth=document.createElement('p');readHealth.id='read-health';readHealth.setAttribute('role','status');readControls.append(readHealth);
 const readNote=document.createElement('p');readNote.textContent='Mark read uses the latest loaded transcript event. Automatic read requires a focused conversation at its caught-up tail. Mark unread stays held until you leave and revisit, or explicitly mark read.';readControls.append(readNote);

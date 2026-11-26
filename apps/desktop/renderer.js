@@ -1,3 +1,10 @@
+const client = Object.fromEntries(Object.entries(desk.provider).map(([name,call])=>[name,name==='onStream'?call:async(...args)=>{
+  const result=await call(...args);
+  if(result.error)throw Object.assign(Error(result.error),{code:result.code||'provider'});
+  return result.value;
+}]));
+let providerInfo = null;
+const capability = name => providerInfo?.capabilities[name] || {supported:false,reason:'Provider is loading.'};
 const $ = id => document.getElementById(id);
 const projectPicker = $('projects'), draft = $('draft'), transcript = $('transcript');
 let project, thread, cursor, before, demoMode, pane = 'navigator', pending = false;
@@ -41,7 +48,7 @@ function scheduleMessages(delay = 100) {
 }
 document.addEventListener('visibilitychange', () => {
   clearTimeout(messageTimer);messageTimer=null;
-  if (document.hidden) { ++messageRequest; messageBusy = false; desk.cancelMessages().catch(()=>{}); }
+  if (document.hidden) { ++messageRequest; messageBusy = false; client.cancelContent().catch(()=>{}); }
   else scheduleMessages();
 });
 const drafts = new Map();
@@ -52,7 +59,7 @@ const outgoing = {
     for(const entry of this.items.values()) {
       if(entry.threadId!==id)continue;
       const index=result.findIndex(item=>item.source==='user'&&(item.clientKey===entry.clientKey||entry.receiptId&&item.id===entry.receiptId));
-      const status=(entry.state==='sending'?'Sending…':entry.state==='accepted'?(demoMode?'Saved in demo':'Queued · accepted'):'Send not confirmed · retry with the same ID')+(entry.model?' · '+entry.model.modelId:'');
+      const status=(entry.state==='sending'?'Sending…':entry.state==='accepted'?(entry.delivery==='queue'?'Queued · accepted':entry.delivery==='local'?(demoMode?'Saved in demo':'Saved locally'):'Accepted'):'Send not confirmed · retry with the same ID')+(entry.model?' · '+entry.model.modelId:'');
       const item={...(index<0?{id:entry.receiptId||'outgoing-'+entry.clientKey,source:'user',text:entry.text,createdAt:entry.createdAt}:result[index]),outgoingLocal:index<0,outgoingState:entry.state,outgoingStatus:status,clientKey:entry.clientKey};
       if(index<0)result.push(item);else result[index]=item;
     }
@@ -66,13 +73,13 @@ const outgoing = {
     pending=true;entry.state='sending';this.items.set(entry.clientKey,entry);updateSend();this.paint(entry.threadId);
     if(thread?.id===entry.threadId&&['complete','offline'].includes(liveStream.state))liveStream.select(thread);
     try {
-      const receipt=await desk.send(entry.threadId,entry.text,entry.clientKey,entry.model);
-      if(!receipt||typeof receipt.id!=='string'||!/^[A-Za-z0-9]{26}$/.test(receipt.id)||typeof receipt.deduped!=='boolean')throw Error('Invalid send receipt. Delivery is uncertain; retry uses the same message ID.');
-      entry.receiptId=receipt.id;entry.state='accepted';
+      const receipt=await client.send(entry.threadId,entry.text,entry.clientKey,entry.model);
+      if(!receipt||typeof receipt.id!=='string'||!receipt.id.length||receipt.id.length>256||typeof receipt.deduped!=='boolean')throw Error('Invalid send receipt. Delivery is uncertain; retry uses the same message ID.');
+      entry.receiptId=receipt.id;entry.delivery=receipt.delivery;entry.state='accepted';
       workActivity.accepted(entry.threadId);
       conversationControls.sent(entry);
       if(composer.clearSent(entry.threadId,entry.sentDoc))drafts.delete(entry.threadId);
-      if(thread?.id===entry.threadId){say(demoMode?'Saved in this demo session.':'Accepted for queue delivery. This does not mean the agent has started.');if(liveStream.state==='complete')liveStream.select(thread);if(!messageBusy)loadMessages().catch(fail);}
+      if(thread?.id===entry.threadId){say(receipt.delivery==='queue'?'Accepted for queue delivery. This does not mean the agent has started.':receipt.delivery==='local'?(demoMode?'Saved in this demo session.':'Saved in this local session.'):'Message accepted. This does not mean processing has started.');if(liveStream.state==='complete')liveStream.select(thread);if(!messageBusy)loadMessages().catch(fail);}
     } catch(error) {entry.state='failed';entry.error=error.message;if(thread?.id===entry.threadId)fail(error);}
     finally {pending=false;this.paint(entry.threadId);updateSend();}
   }
@@ -92,7 +99,7 @@ desk.onZoom(showZoom);
 desk.zoomState().then(showZoom);
 const say = text => { $('notice').textContent = text; };
 const fail = error => say(error.message || 'Request failed.');
-const titleOf = item => item.title || 'Untitled thread';
+const titleOf = item => item.title || 'Untitled conversation';
 const keyboardMode = () => {
   const resolved = typeof effectiveScope === 'function' ? effectiveScope() : {scope:pane==='conversation'?'chat':'navigator'};
   const inDraft = composer.focused() && resolved.scope !== 'editorPrompt';
@@ -121,7 +128,7 @@ const keyboardMode = () => {
 };
 
 async function projects(result, restoring = false) {
-  const { items } = result ?? await desk.projects();
+  const { items } = result ?? await client.projects();
   history = [];
   historyIndex = -1;
   project = undefined;
@@ -156,7 +163,7 @@ async function loadThreads(append = false) {
   $('more').hidden = true;
   $('filter-summary').textContent = 'Loading project threads…';
   try {
-    const result = await desk.threads(selectedProject, append ? cursor : null);
+    const result = await client.conversations(selectedProject, append ? cursor : null);
     if (request !== threadRequest || project !== selectedProject) return;
     cursor = result.cursor;
     for (const item of result.items) appendThreadRow(item);
@@ -280,7 +287,7 @@ function displayThread(item, savedMessages) {
   pendingViewRestore = null;
   clearTimeout(messageTimer);messageTimer=null; messageRetries = 0; autoPages = 0;
   ++messageRequest;
-  desk.cancelMessages().catch(()=>{});
+  client.cancelContent().catch(()=>{});
   savePaneState(thread?.id);
   resetChatProjection();
   if (thread && messageCache.has(thread.id)) messageViews.set(thread.id, {nodes:[...$('entries').children].filter(n=>!n.dataset.preview),scroll:transcript.scrollTop});
@@ -349,7 +356,7 @@ async function loadMessages(older = false, cached = false, pageLimit = 5) {
       if (seen.has(signature)) { stalled = true; break; }
       seen.add(signature);
       if (!older && state.next) state.forwardSeen.push(signature);
-      const result = await desk.messages(id, query);
+      const result = await client.content(id, query);
       if (request !== messageRequest) return;
       const prior = state.items.length;
       const progress = state.accept(result, query);
@@ -463,7 +470,8 @@ async function messageNodes(items, id) {
 }
 
 function updateSend() {
-  $('send').disabled = pending || draft.disabled || !draft.value.trim();
+  $('send').disabled = !capability('send').supported || pending || draft.disabled || !draft.value.trim();
+  $('send').title=capability('send').supported?'Send message':capability('send').reason;
 }
 
 const shortcuts = $('shortcuts'), connection = $('connection');
@@ -506,7 +514,7 @@ $('more').onclick = () => loadThreads(true).catch(fail);
 $('earlier').onclick = () => loadMessages(true).catch(fail);
 $('newer').onclick = () => loadMessages().catch(fail);
 $('refresh').onclick = () => {
-  ++messageRequest; messageBusy = false; desk.cancelMessages().catch(()=>{});
+  ++messageRequest; messageBusy = false; client.cancelContent().catch(()=>{});
   autoPages = 0; messageRetries = 0; messageState.forwardSeen = []; clearTimeout(messageTimer);messageTimer=null;
   const id = thread?.id;
   loadMessages().catch(error => { if (thread?.id === id) fail(error); });
@@ -537,6 +545,9 @@ desk.status().then(async status => {
   if(document.readyState==='loading')await new Promise(resolve=>document.addEventListener('DOMContentLoaded',resolve,{once:true}));
   for (const [id, text] of status.drafts || []) drafts.set(id, text);
   demoMode = status.demo;
+  providerInfo = status.provider;
+  $('send').textContent=providerInfo.capabilities.delivery==='queue'?'Queue message':'Send message';
+  $('new-thread-button').title=capability('create').supported?'Create conversation':capability('create').reason;
   connectionNotice = status.warning || '';
   $('connection-mode').value = demoMode ? 'mock' : 'live';
   $('saved-key-status').textContent = status.saved ? 'A saved key is available. Mock keeps it dormant.' : 'No saved key. Environment credentials are never saved automatically.';

@@ -13,7 +13,7 @@ const newThread = {
     this.loading=true;this.ready=false;this.update();$('new-error').textContent='Loading projects and available models…';
     for(const input of $('new-thread-form').querySelectorAll('input,select'))input.disabled=true;
     try{
-      const [projects,models,settings]=await Promise.all([desk.projects(),desk.models(),desk.workspaceConfig()]);
+      const [projects,models,settings]=await Promise.all([client.projects(),client.models(),client.workspaceSettings()]);
       this.projects=projects.items;this.models=models.items;
       if(!workTree.loaded){workTree.config=settings.config;workTree.loaded=true;}
       const previous=$('new-project').value||project;
@@ -21,13 +21,13 @@ const newThread = {
       if(this.projects.some(p=>p.id===previous))$('new-project').value=previous;
       $('new-model').replaceChildren(new Option('Account default (server resolves availability)',''),...this.models.map(m=>new Option(m.name+' · '+m.billing,m.id)));
       this.defaults(previousOptions?.projectId===$('new-project').value?{modelId:previousOptions.model?.modelId||'',reasoningMode:previousOptions.model?.reasoningMode||'',modes:previousOptions.model?.modes||{},machineSize:previousOptions.machineSize||''}:null);this.ready=true;$('new-error').textContent=settings.error||'';
-      $('new-note').textContent='Explicit submit starts a real agent. Account default: '+(models.default?.modelId||'server selected')+'.';
+      $('new-note').textContent=capability('create').supported?'Explicit submit starts a real agent. Account default: '+(models.default?.modelId||'server selected')+'.':capability('create').reason;
     }catch(error){$('new-error').textContent=error.message;}
     this.loading=false;
-    for(const input of $('new-thread-form').querySelectorAll('input,select'))input.disabled=!this.ready;
+    for(const input of $('new-thread-form').querySelectorAll('input,select'))input.disabled=!this.ready||!capability('create').supported;
     const m=this.models.find(m=>m.id===$('new-model').value);
-    $('new-reasoning').disabled=!this.ready||!m;
-    for(const input of $('new-modes').querySelectorAll('input'))input.disabled=!this.ready||!m?.[input.dataset.mode];
+    $('new-reasoning').disabled=!this.ready||!m||!capability('create').supported;
+    for(const input of $('new-modes').querySelectorAll('input'))input.disabled=!this.ready||!m?.[input.dataset.mode]||!capability('create').supported;
     this.update();
   },
   defaults(selected=null){
@@ -60,10 +60,11 @@ const newThread = {
   },
   valid(){
     const options=this.options(),m=this.models.find(m=>m.id===options.model?.modelId);
-    return this.ready&&this.projects.some(p=>p.id===options.projectId)&&options.message.trim().length>0&&options.message.length<=30000&&(!options.model||m&&(!options.model.reasoningMode||m.reasoningModes.includes(options.model.reasoningMode))&&Object.keys(options.model.modes||{}).every(k=>m[k]));
+    return capability('create').supported&&this.ready&&this.projects.some(p=>p.id===options.projectId)&&options.message.trim().length>0&&options.message.length<=30000&&(!options.model||m&&(!options.model.reasoningMode||m.reasoningModes.includes(options.model.reasoningMode))&&Object.keys(options.model.modes||{}).every(k=>m[k]));
   },
   update(){
     $('new-submit').disabled=this.busy||!this.valid();$('new-submit').textContent=this.busy?'Creating…':'Create thread';
+    $('new-submit').title=capability('create').supported?'Create conversation':capability('create').reason;
     $('new-reload').disabled=this.busy||this.loading;
     $('new-summary').textContent=[$('new-project').selectedOptions[0]?.textContent,'Cloud · '+($('new-size').value||'project size'),$('new-model').selectedOptions[0]?.textContent,$('new-reasoning').value||'default reasoning'].filter(Boolean).join(' / ');
   },
@@ -74,7 +75,7 @@ const newThread = {
     if(this.attempt?.fingerprint!==fingerprint)this.attempt={fingerprint,id:crypto.randomUUID()};
     for(const input of $('new-thread-form').querySelectorAll('input,textarea,select'))input.disabled=true;
     try{
-      const created=await desk.createThread({...options,requestId:this.attempt.id});
+      const created=await client.createConversation({...options,requestId:this.attempt.id});
       workTree.config.createDefaults[options.projectId]={modelId:options.model?.modelId||'',reasoningMode:options.model?.reasoningMode||'',machineSize:options.machineSize||'',modes:options.model?.modes||{}};
       await workTree.save();
       $('new-prompt').value='';this.attempt=null;this.origin=null;$('new-thread').close();

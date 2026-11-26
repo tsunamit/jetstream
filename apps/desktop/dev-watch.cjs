@@ -7,6 +7,7 @@ function classify(name) {
   if (/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.css$/.test(name)) return 'style';
   if (mainFiles.has(name) || name === 'package.json' || name === 'build.cjs') return 'restart';
   if (name.startsWith('dev-') || /(\.bundle\.js|\.test\.cjs|-smoke\.cjs|^smoke\.cjs|^test-support\.cjs|^hidden-proof\.cjs)$/.test(name)) return null;
+  if (/^provider(?:-[a-z]+)?\.cjs$/.test(name)) return 'restart';
   if (name === 'index.html' || /\.(js|cjs)$/.test(name)) return 'renderer';
   return null;
 }

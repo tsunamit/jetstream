@@ -21,14 +21,14 @@ function api(key, fetcher = fetch, signal) {
       }
       if (response.status === 429 && !body) {
         const seconds = Number(response.headers.get('retry-after'));
-        throw Error('Capy API rate limited. Retry after ' + (Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 3600) : 5) + ' seconds.');
+        throw Object.assign(Error('Capy API rate limited. Retry after ' + (Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds, 3600) : 5) + ' seconds.'),{code:'rate-limited'});
       }
       if(body && path==='threads') {
         const error=await response.json().catch(()=>({}));
         const reasons={'ModelSelection.Rejected':'Selected model is unavailable. Refresh models or choose the account default.','capy/ProjectNotFound':'Project is no longer available.','capy/PaidFeatureUnavailable':'This choice requires a paid feature.','capy/RateLimited':'Rate limited. Wait before retrying with the same request ID.','capy/InvalidRequest':'The server rejected these options. Review project, model and cloud size.','capy/Forbidden':'Your API principal cannot create this thread.','capy/CrewRefused':'Captain access refused.'};
         if(reasons[error._tag]) throw Error(reasons[error._tag]);
       }
-      throw new Error('Capy API returned HTTP ' + response.status + '.');
+      throw Object.assign(new Error('Capy API returned HTTP ' + response.status + '.'),{code:response.status===401?'unauthorized':response.status===403?'forbidden':response.status===429?'rate-limited':'provider'});
     }
     return response.json();
   }
