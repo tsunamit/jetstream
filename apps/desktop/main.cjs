@@ -5,6 +5,8 @@ const { download, safeURL, saveName, Previews } = require('./media.cjs');
 const previews = new Previews();
 const { pathToFileURL } = require('node:url');
 const path = require('node:path');
+const identity = require('./product-identity.cjs');
+identity.initialize(app, process.argv);
 const dev = !app.isPackaged && process.argv.includes('--dev-launch') ? require('./dev-runtime.cjs').setup({app,args:process.argv,directory:__dirname}) : null;
 const { api } = require('./api.cjs');
 const { demo } = require('./demo.cjs');
@@ -256,6 +258,7 @@ const operations = {
 
 let devAction;
 app.whenReady().then(async () => {
+  const productName = identity.display(app, Boolean(dev));
   connection = new Connection({ directory: app.getPath('userData'),
     storage: hiddenTest || process.platform !== 'darwin' ? { isEncryptionAvailable: () => false } : safeStorage,
     validate: candidate => api(candidate).projects(), environment: environmentKey, flags: process.argv });
@@ -265,7 +268,7 @@ app.whenReady().then(async () => {
   window = new BrowserWindow({
     show: !hiddenTest, focusable: !hiddenTest, paintWhenInitiallyHidden: true,
     width: 1140, height: 760, minWidth: 640, minHeight: 600,
-    title: dev ? 'Capy Terminal Dev' : 'Capy Terminal', backgroundColor: '#151819',
+    title: productName, backgroundColor: '#151819',
     webPreferences: { backgroundThrottling: !hiddenTest, preload: dev?.preload ?? path.join(__dirname, 'preload.cjs'), sandbox: true, contextIsolation: true, nodeIntegration: false }
   });
   if(dev)devAction=dev.attach(window,{scope:()=>Workspace.scope(key,demoMode),busy:()=>connection.busy||connection.activeWrites>0,quiesce:()=>{

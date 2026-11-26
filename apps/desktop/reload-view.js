@@ -64,8 +64,8 @@ const devReload = {
   },
   setup(notice) {
     if(this.enabled)return;this.enabled=true;
-    document.title='Capy Terminal Dev';
-    document.querySelector('.brand').append(document.createTextNode(' / DEV'));
+    document.title='Jetstream Dev';
+    document.querySelector('.brand').append(document.createTextNode(' Dev'));
     const box=document.createElement('div');box.id='dev-tools';
     box.style.cssText='position:fixed;right:12px;bottom:38px;z-index:1000;max-width:65vw;background:#202629;color:#e6ebe7;padding:5px 9px;border:1px solid #789b83;font:12px system-ui';
     this.output=document.createElement('output');this.output.id='dev-notice';this.output.textContent=notice;

@@ -3,6 +3,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const {watch,mainFiles} = require('./dev-watch.cjs');
 const {build} = require('./dev-build.cjs');
+const {devName} = require('./product-identity.cjs');
 
 function profile(app, args) {
   const name = args.find(arg => arg.startsWith('--dev-profile='))?.slice(14) || 'default';
@@ -13,13 +14,13 @@ function profile(app, args) {
     const relative=path.relative(os.tmpdir(),path.resolve(override.slice(16)));
     if(!relative||relative.startsWith('..')||path.isAbsolute(relative))throw Error('Hidden Dev tests require an isolated temporary profile.');
   }
-  return override ? override.slice(16) : path.join(app.getPath('appData'),'Capy Terminal Dev','profiles',name);
+  return override ? override.slice(16) : path.join(app.getPath('appData'),devName,'profiles',name);
 }
 
 function setup({app, args, directory}) {
   const directoryPath = profile(app,args);
   fs.mkdirSync(directoryPath,{recursive:true,mode:0o700});
-  app.setName('Capy Terminal Dev');
+  app.setName(devName);
   app.setPath('userData',directoryPath);
   app.setPath('sessionData',directoryPath);
   delete process.env.CAPY_API_KEY;
