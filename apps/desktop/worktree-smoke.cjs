@@ -66,7 +66,7 @@ const out=process.argv[2];
   await shot('activity.png');
   await page.locator('#threads [data-id="t1"]').focus();await page.locator('#tree-refresh').evaluate(b=>b.click());await page.waitForFunction(()=>!workTree.busy);assert.equal(await page.evaluate(()=>document.activeElement.dataset.id),'t1');
   await app.evaluate(()=>{global.testOffline=true;});await page.locator('#tree-refresh').click();await page.locator('#tree-health').getByText(/STALE/).waitFor();
-  assert.match(await page.locator('#threads [data-id="captain1"]').innerText(),/working.*stale/);
+  assert.match(await page.locator('#threads [data-id="captain1"]').textContent(),/working.*stale/);
   await app.evaluate(()=>{global.testOffline=false;});await page.locator('#tree-refresh').click();await page.waitForFunction(()=>!workTree.state.stale);
   await page.locator('#tree-options').evaluate(d=>d.open=true);await page.locator('#tree-text').fill('observations');assert.equal(await page.locator('#threads button').count(),1);await page.locator('#tree-text').fill('');await page.locator('#tree-options').evaluate(d=>d.open=false);
   await page.locator('#navigator').focus();await page.keyboard.type(' tn');await page.locator('#new-thread[open]').waitFor();await page.waitForFunction(()=>newThread.ready);

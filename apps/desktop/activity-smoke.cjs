@@ -44,7 +44,7 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
    workActivity.model.frame('fixture-done',{event:'turn',data:{phase:'end',outcome:'settled'}});workActivity.column=0;workActivity.rows=[0,0,0];workActivity.render(false);
   });
   assert.match(await page.locator('#activity-preview-text').innerText(),/Pick A or B/);
-  assert.deepEqual(await page.locator('.activity-column h3').allTextContents(),['Needs you · 1','Recently finished · 1','Working · 3']);
+  assert.deepEqual(await page.locator('.activity-column h3').allTextContents(),['Needs you','Recently finished','Working']);
   await shot('activity-wide');
   await page.getByRole('button',{name:'List',exact:true}).click();
   assert.equal(await page.getByRole('button',{name:'List',exact:true}).getAttribute('aria-pressed'),'true');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-ask');
@@ -57,7 +57,7 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
   await page.keyboard.press('j');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-reply','List navigation skips empty sections');
   await page.evaluate(()=>{workActivity.data.threads=activityFixtureThreads;workActivity.render();});await page.keyboard.press('h');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-done');
   await page.getByRole('button',{name:'Columns',exact:true}).click();assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-done');assert.equal(await page.evaluate(()=>document.activeElement.id),'activity-board');await page.keyboard.press('h');
-  await page.keyboard.press('l');assert.match(await page.locator('#activity-preview-text').innerText(),/Fixture result/);assert.match(await page.locator('#activity-preview-meta').innerText(),/crew of Release captain/);
+  await page.keyboard.press('l');assert.match(await page.locator('#activity-preview-text').innerText(),/Fixture result/);assert.match(await page.locator('.activity-card[data-id="fixture-done"]').getAttribute('title'),/crew of Release captain/);
   assert.equal(await page.evaluate(()=>workActivity.model.finished.size),1);await page.keyboard.press('l');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-reply');
   await page.keyboard.press('j');assert.notEqual(await page.evaluate(()=>workActivity.selected().id),'fixture-reply');await page.keyboard.press('k');assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-reply');
   await page.evaluate(()=>{workActivity.data.threads.reverse();workActivity.render();});assert.equal(await page.evaluate(()=>workActivity.selected().id),'fixture-reply');

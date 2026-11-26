@@ -140,8 +140,9 @@ function appendThreadRow(item) {
   button.dataset.id=item.id;
   if(item.id===thread?.id)button.setAttribute('aria-current','true');
   const meta=document.createElement('span');meta.className='thread-meta';meta.textContent=[item.code,item.status].filter(Boolean).join(' · ');
+  const details=document.createElement('span');details.className='row-details';details.textContent=meta.textContent;meta.replaceChildren(details);button.title=[titleOf(item),details.textContent].filter(Boolean).join(' · ');
   const name=document.createElement('span');name.className='thread-name';name.textContent=titleOf(item);
-  button.append(meta,name);button.onclick=()=>openThread(item).catch(fail);row.append(button);$('threads').append(row);
+  button.append(name,meta);button.onclick=()=>openThread(item).catch(fail);row.append(button);$('threads').append(row);
   if(typeof workIndicator==='function')workIndicator(button,item);
   if(typeof readState!=='undefined')readState.decorate(button,item);
 }

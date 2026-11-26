@@ -23,12 +23,18 @@ function workIndicator(button,item,fresh = true) {
   const active=item.status==='working' && !item.archived && fresh && navigator.onLine;
   icon.classList.toggle('working',active);
   if(active)CubeIndicator.mount(icon);
-  else {CubeIndicator.unmount(icon);icon.textContent=item.status==='working'?'◇':'·';}
+  else {CubeIndicator.unmount(icon);icon.textContent=item.status==='working'?'◇':'';icon.hidden=item.status!=='working';}
+  if(active)icon.hidden=false;
   icon.title=active?'Working':item.status==='working'?'Last known working · not live':'';
   meta.querySelector('.work-stale')?.remove();
   meta.querySelector('.work-queued')?.remove();
-  if(typeof item.queuedAt==='string'&&Number.isFinite(Date.parse(item.queuedAt))){const label=document.createElement('span');label.className='work-queued';label.textContent=' · queued (last poll)';meta.append(label);}
-  if(item.status==='working'&&!active){const label=document.createElement('span');label.className='work-stale';label.textContent=' · last known';meta.append(label);}
+  meta.querySelector('.row-state')?.remove();
+  const state=document.createElement('span');state.className='row-state row-details';state.textContent=active?'Working':item.status==='working'?'Last known working · not live':item.status||'Status unavailable';meta.append(state);
+  const queued=typeof item.queuedAt==='string'&&Number.isFinite(Date.parse(item.queuedAt));
+  if(queued){const label=document.createElement('span');label.className='work-queued row-details';label.textContent='Queued (last poll)';meta.append(label);}
+  meta.querySelector('.attention-indicator')?.remove();
+  const attention=item.needsYou===true||Boolean(item.ask?.key),failed=item.status==='failed';
+  if(attention||failed||queued){const badge=document.createElement('span');badge.className='attention-indicator';badge.textContent=failed?'×':attention?'!':'◷';badge.title=failed?'Failed':attention?'Needs input':'Queued (last poll)';badge.setAttribute('aria-label',badge.title);meta.append(badge);}
 }
 const workTree = {
   enabled:false, state:new WorkTree.State(), config:WorkTree.defaults(), loaded:false, busy:null, timer:null,
@@ -99,7 +105,7 @@ const workTree = {
     const rows=this.state.rows(this.config,project);
     for(const row of rows){
       const li=document.createElement('li');li.setAttribute('role','none');
-      if(row.section){li.className='tree-section';li.textContent=(row.section==='threads'&&this.config.mode==='tree'?'Standalone threads':row.section).toUpperCase()+(this.config.counts?' · '+row.count+' matching loaded':'');list.append(li);continue;}
+      if(row.section){li.className='tree-section';li.textContent=(row.section==='threads'&&this.config.mode==='tree'?'Standalone threads':row.section).toUpperCase();list.append(li);continue;}
       const item=row.item,b=document.createElement('button');b.dataset.id=item.id;b.dataset.parent=row.parent||'';b.className='tree-row';b.classList.toggle('tree-context',Boolean(row.context));b.style.paddingLeft=(8+row.depth*28)+'px';
       b.style.setProperty('--tree-depth',row.depth);
       b.dataset.kind=item.isProject?'project':item.isCaptain?'captain':'thread';
@@ -107,11 +113,13 @@ const workTree = {
       if(item.id===thread?.id)b.setAttribute('aria-current','true');
       if(row.children)b.setAttribute('aria-expanded',String(Boolean(row.expanded)));
       const meta=document.createElement('span');meta.className='thread-meta';meta.textContent=[item.code,!item.isProject?WorkTree.status(item):'',WorkTree.status(item)==='needs-you'?item.status:'',row.finished?'just finished turn → '+WorkTree.status(item):'',this.state.stale?'stale':'',!this.config.projectRoots?this.state.data.projects.find(p=>p.id===item.projectId)?.name:''].filter(Boolean).join(' · ');
-      const type=document.createElement('span');type.className='tree-type';type.textContent=item.isProject?'Project':item.isCaptain?'Captain':item.parentId?'Crew thread':'Thread';
-      if(item.parentId&&!row.parent){const parent=this.state.data.captains.find(i=>i.id===item.parentId);type.textContent+=' · '+(parent?.title||parent?.name||'Captain not loaded');}
+      const details=document.createElement('span');details.className='row-details';details.textContent=meta.textContent;meta.replaceChildren(details);
+      const type=document.createElement('span');type.className='tree-type row-details';type.textContent=item.isProject?'Project':item.isCaptain?'Captain':item.parentId?'Crew thread':'Thread';
+      if(item.parentId){const parent=this.state.data.captains.find(i=>i.id===item.parentId);type.textContent+=' · crew of '+(parent?.title||parent?.name||'Captain not loaded');}
       const name=document.createElement('span');name.className='thread-name';name.textContent=item.title||item.name||'Untitled thread';
       if(row.children){const disclosure=document.createElement('span');disclosure.className='tree-disclosure';disclosure.setAttribute('aria-hidden','true');disclosure.textContent=row.expanded?'▾':'▸';disclosure.onpointerdown=event=>event.preventDefault();disclosure.onclick=event=>{event.stopPropagation();this.focus(item.id);this.expand(item.id);};name.prepend(disclosure);}
       b.append(type,name,meta);
+      b.title=[name.textContent,type.textContent,details.textContent].filter(Boolean).join(' · ');
       const subscribed=typeof liveStream!=='undefined'&&item.id===liveStream.id;
       const freshPoll=!this.state.stale&&Date.now()-this.state.updated<120000;
       if(!item.isProject){
@@ -122,8 +130,7 @@ const workTree = {
         const children=this.state.data.threads.filter(i=>item.isProject?i.projectId===item.projectId:i.parentId===item.id);
         const working=children.filter(i=>i.status==='working'&&!i.archived).length;
         const unread=item.isProject&&typeof readState!=='undefined'?children.filter(i=>readState.value(i)===true).length:0;
-        const count=document.createElement('span');count.className='tree-type';count.textContent=row.count+' matching loaded'+(unread?' · '+unread+' unread threads (loaded)':'');b.append(count);
-        if(working){const summary=document.createElement('span'),meta=document.createElement('span');meta.className='thread-meta';meta.textContent=working+' working '+(item.isProject?'threads':'crew')+' (loaded)';summary.append(meta);if(item.status!=='working')workIndicator(summary,{status:'working'},freshPoll);b.append(summary);}
+        const count=document.createElement('span');count.className='tree-type row-details';count.textContent=row.count+' matching loaded'+(unread?' · '+unread+' unread threads (loaded)':'')+(working?' · '+working+' working '+(item.isProject?'threads':'crew')+' (loaded)':'');b.append(count);
       }
       b.onclick=()=>{if(!item.isProject)openThread(item,{projectId:item.projectId}).catch(fail);};
       li.append(b);list.append(li);
@@ -148,7 +155,8 @@ document.addEventListener('focusin',event=>{const id=event.target.closest('#thre
 function renderFilterSummary() {
   const c=workTree.config,filtered=workTree.enabled ? c.text||c.status!=='all'||c.project!=='current'||c.archive||c.sections.length!==2 : navigatorQuery;
   const scope=workTree.enabled ? c.project==='current'?'Current project':c.project==='all'?'All projects':workTree.state.data.projects.find(p=>p.id===c.project)?.name||'Project filter' : 'Current project';
-    $('filter-summary').textContent=[scope,workTree.enabled&&c.status!=='all'?c.status:'',workTree.enabled?c.text? '“'+c.text+'”':'':navigatorQuery?'“'+navigatorQuery+'”':'',workTree.enabled&&c.sections.length!==2?c.sections.join(' + ')||'No sections':'',navigatorRows().length+' rows',typeof readState!=='undefined'?readState.countLabel():''].filter(Boolean).join(' · ');
+    $('filter-summary').textContent=[scope,workTree.enabled&&c.status!=='all'?c.status:'',workTree.enabled?c.text? '“'+c.text+'”':'':navigatorQuery?'“'+navigatorQuery+'”':'',workTree.enabled&&c.sections.length!==2?c.sections.join(' + ')||'No sections':''].filter(Boolean).join(' · ');
+  $('filter-summary').title=[navigatorRows().length+' rows',typeof readState!=='undefined'?readState.countLabel():''].filter(Boolean).join(' · ');
   $('clear-filters').hidden=!filtered;
 }
 $('clear-filters').onclick=()=>{

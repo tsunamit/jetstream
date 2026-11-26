@@ -6,6 +6,7 @@
   "main": "main.cjs",
   "scripts": {
     "activity-smoke": "node activity-smoke.cjs",
+    "title-rows-smoke": "node title-rows-smoke.cjs",
     "recent-smoke": "node recent-smoke.cjs",
     "traversal-smoke": "node traversal-smoke.cjs",
     "start": "electron .",

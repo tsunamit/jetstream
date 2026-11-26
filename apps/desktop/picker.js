@@ -38,8 +38,11 @@ async function renderPins() {
   $('pin-list').replaceChildren(...pins.map((id, index) => {
     const item = [...catalog.threads, ...catalog.captains].find(t => t.id === id);
     const button = document.createElement('button');
-    button.textContent = (index + 1) + ' · ' + titleOf(item ?? {});
-    button.title = 'Quick jump ' + (index + 1) + keyHint('pin' + (index + 1));
+    const name=document.createElement('span'),meta=document.createElement('span');name.className='thread-name';name.textContent=titleOf(item??{});meta.className='thread-meta';button.append(name,meta);
+    if(item){workIndicator(button,item,!workTree.state.stale&&Date.now()-workTree.state.updated<120000);if(typeof readState!=='undefined')readState.decorate(button,item);}
+    const parent=item?.parentId||item?.captain?.jamId,parentName=[...catalog.threads,...catalog.captains].find(t=>t.id===parent)?.title||item?.captain?.name;
+    button.title = ['Quick jump ' + (index + 1) + keyHint('pin' + (index + 1)),item?.isCaptain?'Captain':parent?'Crew thread':'Thread',parent?'crew of '+(parentName||'Captain not loaded'):'',catalog.projects.find(p=>p.id===item?.projectId)?.name].filter(Boolean).join(' · ');
+    const details=document.createElement('span');details.className='row-details';details.textContent=button.title;meta.append(details);
     button.onclick = () => jumpPin(index);
     return button;
   }));
@@ -115,9 +118,10 @@ function renderPicker(preserve = true) {
       (['threads','captains','pins'].includes(collection) && visits.has(item.threadId) ? 'session visit #' + visits.get(item.threadId) : item.minutes != null ? item.minutes + 'm ago · sample activity' : 'not visited this session') +
       (collection === 'results' ? viewed.has(item.id) ? ' · viewed' : ' · new' : '');
     if(collection==='centralSearch')meta.textContent=[item.isCaptain?'Captain':'Thread',context?.code,projectName||'No project',context?.queuedAt?'queued':context?.status||'idle',context?.parentId?'crew of '+(contexts.find(t=>t.id===context.parentId)?.title||context.captain?.name||context.parentId):null,item.reason==='Unread'?null:item.reason].filter(Boolean).join(' · ');
+    const details=document.createElement('span');details.className='row-details';details.textContent=meta.textContent;meta.replaceChildren(details);row.title=[item.title,details.textContent].join(' · ');
     row.append(title, meta);
     if(context){workIndicator(row,context,!workTree.state.stale&&Date.now()-workTree.state.updated<120000||context.id===liveStream.id&&liveStream.state==='streaming');if(typeof readState!=='undefined')readState.decorate(row,context);}
-    if (collection === 'results' || collection === 'centralSearch') {
+    if (collection === 'results') {
       const outcome = document.createElement('p');
       outcome.className = 'result-summary';
       outcome.textContent = item.detail;
@@ -131,7 +135,7 @@ function renderPicker(preserve = true) {
   $('picker-open').disabled = !item;
   $('picker-open').textContent=collection==='centralSearch'?'Open context':'Open thread';
   const context = contexts.find(t => t.id === item?.threadId);
-  $('preview-meta').textContent = item ? (data.projects.find(p => p.id === context?.projectId)?.name||'No project').toUpperCase() + ' / ' + (collection === 'centralSearch'?(item.isCaptain?'CAPTAIN':'THREAD'):collection === 'results' ? 'TURN RESULT' : collection.toUpperCase()) : 'NO MATCHES';
+  $('preview-meta').textContent = item ? collection==='results'?'TURN RESULT':'' : 'NO MATCHES';
   $('preview-title').textContent = item?.title ?? (pickerLoading ? 'Loading available contexts…' : pickerError ? 'Catalog unavailable' : 'Try a different search');
   $('preview-text').textContent = item?.detail ?? 'Search by thread title, code, or words in an update.';
   $('preview-note').textContent = collection === 'captains' ? 'Only captain contexts you opened this session appear here. Visit a captain from its project navigator first. Visits are not API activity timestamps; ordinary crew threads do not count as captain visits.' : collection === 'threads' ? demoMode ? 'All demo projects. Session visits come first, then sample activity; no live API activity or transcript search.' : 'All accessible API projects. Session visits come first. No transcript full-text search or historical result feed.' : collection === 'results' && item ? 'Enter opens this specific update. Viewing it marks it as read in this demo session.' :
