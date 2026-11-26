@@ -122,6 +122,7 @@ const operations = {
   models: () => {
     return provider.call('models');
   },
+  creationOptions: () => provider.call('creationOptions'),
   createThread: async input => {
     if(!provider.describe().capabilities.create.supported)return provider.call('create',input);
     if(!input || JSON.stringify(input).length>34000) throw Error('Invalid creation request.');

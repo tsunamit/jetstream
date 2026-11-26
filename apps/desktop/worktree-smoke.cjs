@@ -72,6 +72,7 @@ const out=process.argv[2];
   await page.locator('#navigator').focus();await page.keyboard.type(' tn');await page.locator('#new-thread[open]').waitFor();await page.waitForFunction(()=>newThread.ready);
   assert.equal(await page.locator('#new-submit').isDisabled(),true);
   assert.equal(await page.locator('#new-machine option:disabled').count(),2);
+  await page.locator('#new-cloud').evaluate(d=>d.open=true);
   await page.locator('#new-project').selectOption('p2');await page.locator('#new-model').selectOption('catalog-sol');await page.locator('#new-reasoning').selectOption('high');await page.locator('[data-mode="fast"]').check();await page.locator('#new-size').selectOption('medium');await page.locator('#new-prompt').fill('Review the thread lifecycle and explain any missing stream events.');
   for(const size of ['small','medium','large','ultra','hyper','bigguy']){await page.locator('#new-size').selectOption(size);assert.equal(await page.evaluate(()=>newThread.options().machineSize),size);}await page.locator('#new-size').selectOption('medium');
   await page.locator('#new-prompt').focus();await page.keyboard.type(' jk tn');assert.ok((await page.locator('#new-prompt').inputValue()).endsWith(' jk tn'));
