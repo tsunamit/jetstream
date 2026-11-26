@@ -5,6 +5,20 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
  try{
   app=await _electron.launch({args:['.','--demo','--user-data-dir='+profile],env:{...process.env,CAPY_API_KEY:''}});
   const page=await app.firstWindow();page.setDefaultTimeout(10000);const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const settleReading=async()=>{
+   await page.waitForFunction(()=>!workActivity.dialog.open&&workActivity.origin===null&&!messageBusy&&!navigating&&!liveStream.rendering&&!liveStream.dirty);
+   return page.evaluate(()=>new Promise((resolve,reject)=>{
+    let previous='',stable=0,frames=0;
+    const sample=()=>{
+     const box=id=>{const r=$(id).getBoundingClientRect();return [r.x,r.y,r.width,r.height];};
+     const geometry={viewport:[innerWidth,innerHeight],transcript:box('transcript'),total:transcript.scrollHeight,reply:box('composer'),scroll:transcript.scrollTop};
+     const key=JSON.stringify(geometry);stable=key===previous&&layoutView.frame===null?stable+1:0;previous=key;
+     if(stable>=3){resolve(geometry);return;}
+     if(++frames>=120){reject(Error('Reading layout did not settle: '+key));return;}
+     requestAnimationFrame(sample);
+    };requestAnimationFrame(sample);
+   }));
+  };
   await page.waitForFunction(()=>typeof workActivity!=='undefined'&&keyReady&&thread&&!navigating&&!messageBusy);
   const shot=async name=>{
    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
@@ -70,14 +84,17 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
   await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1280,800));
   await page.keyboard.press('i');await page.keyboard.type(' k');assert.equal(await page.evaluate(()=>workActivity.dialog.open),false);assert.match(await page.evaluate(()=>draft.value),/ k/);await page.keyboard.press('Escape');
   await page.keyboard.type(' k');await page.locator('#work-activity[open]').waitFor();await page.waitForFunction(()=>!workActivity.loading);await page.keyboard.press('Escape');
+  await settleReading();
   await page.evaluate(()=>{transcript.scrollTop=0;});
-  const scrollBefore=await page.evaluate(()=>transcript.scrollTop);
+  const readingBefore=await settleReading();assert.equal(readingBefore.scroll,0,'The explicit top-of-conversation fixture must settle at zero');
   await page.keyboard.type(' k');await page.locator('#work-activity[open]').waitFor();await page.waitForFunction(()=>!workActivity.loading);await page.keyboard.press('Escape');
-  assert.ok(Math.abs(await page.evaluate(()=>transcript.scrollTop)-scrollBefore)<=1,'Cancel restores reading scroll without viewport changes');
+  const readingAfter=await settleReading(),diagnostic=JSON.stringify({before:readingBefore,after:readingAfter});
+  assert.deepEqual({...readingAfter,scroll:0},{...readingBefore,scroll:0},'Cancel keeps settled reading geometry: '+diagnostic);
+  assert.ok(Math.abs(readingAfter.scroll-readingBefore.scroll)<=1,'Cancel restores reading scroll without viewport changes: '+diagnostic);
   await page.locator('#conversation').focus();await page.keyboard.type(' pf');await page.locator('#picker[open]').waitFor();assert.ok(await page.locator('#picker-preview').isVisible());await page.keyboard.press('Escape');
   await page.evaluate(async()=>{await workActivity.open();workActivity.data.threads=[{...thread,status:'working'}];workActivity.data.captains=[];workActivity.column=2;workActivity.rows=[0,0,0];workActivity.render(false);});
   await page.keyboard.press('Enter');await page.waitForFunction(()=>!workActivity.dialog.open&&!navigating&&!messageBusy);assert.equal(await page.evaluate(()=>thread.id),before.id);
-  assert.equal(await page.evaluate(()=>workActivity.timer),null);
+  await page.waitForFunction(()=>workActivity.timer===null);assert.equal(await page.evaluate(()=>workActivity.timer),null);
   await page.locator('#keymaps-button').click();await page.locator('#map-workActivity').fill('<leader>pf');await page.locator('#keymaps-form').evaluate(f=>f.requestSubmit());assert.match(await page.locator('#keymaps-error').innerText(),/conflict|collision|already|overlap/i);
   await page.locator('#map-workActivity').fill('<leader>zk');await page.locator('#keymaps-form').evaluate(f=>f.requestSubmit());await page.waitForFunction(()=>$('keymaps-error').textContent.startsWith('Saved.'));await page.locator('#close-keymaps').click();
   await page.locator('#conversation').focus();await page.keyboard.type(' zk');await page.locator('#work-activity[open]').waitFor();await page.waitForFunction(()=>!workActivity.loading);
@@ -101,7 +118,10 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
   const reopened=await page.evaluate(async()=>{const closed=new Promise(resolve=>activityDialog.addEventListener('close',resolve,{once:true}));activityDialog.close();globalThis.activityReopening=workActivity.open();const request=workActivity.request;await closed;return {open:activityDialog.open,loading:workActivity.loading,sameRequest:request===workActivity.request,focus:document.activeElement.id};});
   assert.deepEqual(reopened,{open:true,loading:true,sameRequest:true,focus:'activity-board'},'A queued close event must not cancel the reopened panel');
   await app.evaluate(()=>activityBoth);
-  await page.keyboard.press('Escape');await app.evaluate(()=>activityReleases.forEach(release=>release()));await page.evaluate(()=>Promise.all([activityOpening,activityReopening]));assert.equal(await page.evaluate(()=>workActivity.dialog.open),false);assert.equal(await page.evaluate(()=>workActivity.timer),null);
+  const closingRequest=await page.evaluate(()=>workActivity.request);await page.keyboard.press('Escape');
+  await page.waitForFunction(()=>!workActivity.dialog.open&&workActivity.origin===null&&workActivity.timer===null);
+  assert.ok(await page.evaluate(()=>workActivity.request)>closingRequest,'Delivered close invalidates the active request');
+  await app.evaluate(()=>activityReleases.forEach(release=>release()));await page.evaluate(()=>Promise.all([activityOpening,activityReopening]));assert.equal(await page.evaluate(()=>workActivity.dialog.open),false);assert.equal(await page.evaluate(()=>workActivity.timer),null);
   assert.deepEqual(errors,[]);console.log('PASS activity hidden rendering, three columns/right preview, known ask/result, recent reply order, selection, responsive bounds, reversible composer/draft/history, Insert isolation, Enter commit, timer cleanup, keymap collision/remap and search split preview');
  }finally{await app?.close();await fs.rm(profile,{recursive:true,force:true});}
 })().catch(e=>{console.error(e);process.exitCode=1;});
