@@ -7,7 +7,7 @@
 .activity-column.active{border-color:var(--mint)}.activity-column h3{font-size:12px;margin:0;padding:12px 8px;border-bottom:1px solid var(--line)}
 .activity-rows{overflow:auto;min-height:0;padding:5px;overscroll-behavior:contain}
 .activity-card{padding:11px 8px;margin-bottom:6px;border:1px solid var(--line);border-radius:4px;cursor:pointer;overflow-wrap:anywhere}
-.activity-card strong{display:block;font-size:12px;line-height:1.5;font-weight:500}.activity-card span{display:block;font-size:10px;line-height:1.6;color:var(--muted);margin-top:4px}
+.activity-card strong{display:block;font-size:12px;line-height:1.5;font-weight:500}.activity-card .thread-meta{font-size:10px;color:var(--muted)}
 .activity-card[aria-selected=true]{background:#bad3c4;color:#151819;border-color:#bad3c4}.activity-card[aria-selected=true] span{color:#33493c}
 .activity-empty{font-size:11px;line-height:1.6;color:var(--muted);padding:10px 6px}
 #activity-preview{overflow:auto;min-width:0;border-left:1px solid var(--line);padding:8px 0 8px 16px;overflow-wrap:anywhere;overscroll-behavior:contain}

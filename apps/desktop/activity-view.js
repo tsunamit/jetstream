@@ -44,21 +44,25 @@ const workActivity={
     this.board.replaceChildren();$('activity-tabs').replaceChildren();
     for(const [column,title] of ActivityState.columns.entries()){
       const section=document.createElement('section');section.className='activity-column'+(this.column===column?' active':'');
-      const heading=document.createElement('h3');heading.id='activity-heading-'+column;heading.textContent=title+' · '+this.groups[column].length;
+      const heading=document.createElement('h3');heading.id='activity-heading-'+column;heading.textContent=title;
       const list=document.createElement('div');list.className='activity-rows';list.setAttribute('role','group');list.setAttribute('aria-labelledby',heading.id);
       const tab=document.createElement('button');tab.type='button';tab.textContent=heading.textContent;tab.setAttribute('aria-pressed',String(this.column===column));tab.onclick=()=>this.select(column);$('activity-tabs').append(tab);
       for(const [index,item] of this.groups[column].entries()){
         const row=document.createElement('div');row.className='activity-card';row.id='activity-option-'+column+'-'+index;row.dataset.id=item.id;row.setAttribute('role','option');row.setAttribute('aria-selected',String(column===this.column&&index===this.rows[column]));
-        const name=document.createElement('strong');name.textContent=item.title;
-        const meta=document.createElement('span');meta.textContent=this.meta(item);
-        const status=document.createElement('span');status.textContent=column===0?'Needs input':column===1?'Observed settled turn':item.status==='working'?'Working':item.queuedAt?'Queued':'Recently replied · '+(item.status||'status unavailable');
-        row.append(name,meta,status);row.onclick=()=>this.select(column,index);row.ondblclick=()=>this.commit();list.append(row);
+        const name=document.createElement('strong');name.className='thread-name';name.textContent=item.title;
+        const meta=document.createElement('span');meta.className='thread-meta';
+        const details=document.createElement('span');details.className='row-details';details.textContent=this.meta(item);meta.append(details);
+        row.title=[item.title,this.meta(item)].join(' · ');
+        row.append(name,meta);
+        workIndicator(row,item,!workTree.state.stale&&Date.now()-workTree.state.updated<120000||item.id===liveStream.id&&liveStream.state==='streaming');
+        if(typeof readState!=='undefined')readState.decorate(row,item);
+        row.onclick=()=>this.select(column,index);row.ondblclick=()=>this.commit();list.append(row);
       }
       if(!this.groups[column].length){const empty=document.createElement('p');empty.className='activity-empty';empty.textContent=['No explicit asks in the available contexts.','No unacknowledged settled turns observed this session. Other conversations may have finished outside this app’s stream.','No working, queued or recently replied-to contexts available.'][column];list.append(empty);}
       section.append(heading,list);this.board.append(section);
     }
     const item=this.selected();
-    $('activity-preview-meta').textContent=item?this.meta(item):ActivityState.columns[this.column];
+    $('activity-preview-meta').textContent=ActivityState.columns[this.column];
     $('activity-preview-title').textContent=item?.title||'Nothing here yet';
     const loaded=item&&messageCache.get(item.id)?.items.findLast(entry=>['assistant','user'].includes(entry.source)&&typeof entry.text==='string'&&entry.text.trim());
     $('activity-preview-text').textContent=item?.ask?.text||item?.completion?.text||(loaded?'Loaded message · '+loaded.text.slice(0,1200):item?'Latest message not loaded. Open the conversation to catch up.':'Use h/l to check another column.');

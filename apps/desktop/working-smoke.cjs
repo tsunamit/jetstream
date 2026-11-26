@@ -22,7 +22,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     assert.equal(await page.locator('.work-indicator.working').count(),1);
     assert.equal(await page.locator('[data-id="fresh"] .work-indicator svg use').count(),1);
     for(const id of ['stale','archived','offline']){assert.equal(await page.locator('[data-id="'+id+'"] .work-indicator').innerText(),'◇');assert.match(await page.locator('[data-id="'+id+'"] .work-indicator').getAttribute('title'),/Last known/);}
-    assert.equal(await page.locator('[data-id="idle"] .work-indicator').innerText(),'·');
+    assert.equal(await page.locator('[data-id="idle"] .work-indicator').isHidden(),true);
     assert.equal(await page.locator('[data-id="fresh"] .work-indicator').getAttribute('aria-hidden'),'true');
     const native=await page.locator('[data-id="fresh"] .work-indicator').boundingBox();assert.equal(native.width,16);assert.equal(native.height,16);
     await page.evaluate(()=>{document.querySelector('#cube-working-frame path').setAttribute('d',CubeMath.render(1350,900).path);});await settle();await capture('working-3d.png');
@@ -38,7 +38,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     const offline=await page.evaluate(()=>CubeIndicator.stats.frames());await page.waitForTimeout(150);assert.equal(await page.evaluate(()=>CubeIndicator.stats.frames()),offline);
     await page.evaluate(()=>{delete navigator.onLine;window.dispatchEvent(new Event('online'));});await page.waitForFunction(()=>CubeIndicator.stats.running());
     await page.emulateMedia({reducedMotion:'reduce'});await page.waitForFunction(()=>!CubeIndicator.stats.running()&&document.querySelector('#cube-working-frame path').getAttribute('d')===CubeMath.render(0,900).path);const reduced=await clockState();await page.waitForTimeout(150);assert.deepEqual(await clockState(),reduced);await capture('working-static.png');
-    await page.evaluate(()=>{const {button,item}=fixtureRows.get('fresh');workIndicator(button,{...item,status:'idle'},true);});assert.equal(await page.locator('[data-id="fresh"] .work-indicator').innerText(),'·');assert.equal(await page.locator('[data-id="fresh"]').evaluate(n=>n.classList.contains('thread-unread')),true);assert.equal(await page.evaluate(()=>CubeIndicator.stats.hosts()),0);
+    await page.evaluate(()=>{const {button,item}=fixtureRows.get('fresh');workIndicator(button,{...item,status:'idle'},true);});assert.equal(await page.locator('[data-id="fresh"] .work-indicator').isHidden(),true);assert.equal(await page.locator('[data-id="fresh"]').evaluate(n=>n.classList.contains('thread-unread')),true);assert.equal(await page.evaluate(()=>CubeIndicator.stats.hosts()),0);
     await page.emulateMedia({reducedMotion:'no-preference'});assert.equal(await page.evaluate(()=>CubeIndicator.stats.running()),false);
     await page.evaluate(()=>{const {button,item}=fixtureRows.get('fresh');workIndicator(button,item,true);});await page.waitForFunction(()=>CubeIndicator.stats.running());await page.evaluate(()=>fixtureRows.get('fresh').li.remove());await page.waitForFunction(()=>CubeIndicator.stats.hosts()===0&&!CubeIndicator.stats.running());
     await page.evaluate(()=>fixtureRow('zoom',{status:'working',hasUnreads:false}));

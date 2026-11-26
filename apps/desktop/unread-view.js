@@ -11,8 +11,9 @@ const readState = {
   decorate(row,item){
     const unread=this.value(item)===true;row.classList.toggle('thread-unread',unread);
     const meta=row.querySelector('.thread-meta');if(!meta)return;
-    if(unread){const label=document.createElement('span');label.className='unread-label';label.textContent='Unread';const dot=document.createElement('span');dot.className='unread-dot';dot.setAttribute('aria-hidden','true');label.prepend(dot);meta.append(label);}
-    if(item.isCaptain){const count=workTree.state.data.threads.filter(i=>i.parentId===item.id&&this.value(i)===true).length;if(count)meta.append(document.createTextNode(' · '+count+' unread crew'));}
+    if(unread){const label=document.createElement('span');label.className='unread-label';label.title='Unread';const text=document.createElement('span');text.className='row-details';text.textContent='Unread';const dot=document.createElement('span');dot.className='unread-dot';dot.setAttribute('aria-hidden','true');label.append(dot,text);meta.append(label);}
+    meta.querySelector('.crew-unread-summary')?.remove();
+    if(item.isCaptain){const count=workTree.state.data.threads.filter(i=>i.parentId===item.id&&this.value(i)===true).length;if(count){const label=document.createElement('span');label.className='row-details crew-unread-summary';label.textContent=count+' unread crew';meta.append(label);}}
   },
   countLabel(){if(!workTree.config.counts)return '';const data=workTree.state.data,items=data.threads.concat(data.captains);const known=items.filter(i=>typeof this.value(i)==='boolean'),count=known.filter(i=>this.value(i)).length;return known.length?count+' unread thread'+(count===1?'':'s')+(known.length<items.length?' · partial status':''):'';},
   paint(){

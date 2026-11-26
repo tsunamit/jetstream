@@ -30,12 +30,12 @@ const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:pa
   await page.waitForFunction(()=>!pickerLoading);
   assert.equal(await page.evaluate(()=>document.activeElement.id),'picker-search');
   assert.deepEqual(await page.evaluate(()=>matches.map(i=>i.id)),['ask','new','captain','same-title','wait']);
-  assert.match(await page.locator('#picker-list').innerText(),/Needs input/);assert.ok(!(await page.locator('#picker-list').innerText()).includes('undefined'));
+  assert.equal(await page.locator('#picker-list [aria-label="Needs input"]').count(),1);assert.ok(!(await page.locator('#picker-list').innerText()).includes('undefined'));
   assert.equal(await page.evaluate(()=>matches.filter(i=>i.id==='captain').length),1);
   await shot('central-search-attention');
   const requests=await app.evaluate(()=>calls.length),id=await page.evaluate(()=>thread.id);
   await page.locator('#picker-search').fill('artfcts');assert.deepEqual(await page.evaluate(()=>matches.map(i=>i.id)),['crew','same-title']);
-  assert.match(await page.locator('#picker-list').innerText(),/crew of Coordinate release/);
+  assert.match(await page.locator('#picker-list [role="option"]').first().getAttribute('title'),/crew of Coordinate release/);
   assert.equal(await page.evaluate(()=>thread.id),id);assert.equal(await app.evaluate(()=>calls.length),requests);
   await page.keyboard.type('jk');assert.equal(await page.locator('#picker-search').inputValue(),'artfctsjk');
   await page.locator('#picker-search').fill('observatory');assert.deepEqual(await page.evaluate(()=>matches.map(i=>i.id)),['crew','new']);
