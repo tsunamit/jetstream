@@ -13,7 +13,7 @@ function toggleSidebar(show = !sidebarVisible, focus = true) {
   document.body.classList.toggle('sidebar-hidden',!show);
   try {localStorage.setItem('sidebar-visible',String(show));} catch {}
   sidebarToggleHint();
-  if(focus && show) (navigatorRows().find(r=>r.dataset.id===lastNavigatorId) ?? navigatorRows().find(r=>r.dataset.id===thread?.id) ?? $('navigator')).focus({preventScroll:true});
+  if(focus && show) {const row=navigatorRows().find(r=>r.dataset.id===lastNavigatorId) ?? navigatorRows().find(r=>r.dataset.id===thread?.id) ?? $('navigator');row.focus({preventScroll:true});row.scrollIntoView({block:'nearest',inline:'nearest'});}
   else if(wasInside && !show) {$('conversation').focus({preventScroll:true});reconcileChatCursor();paintChat(false);}
 }
 function workIndicator(button,item,fresh = true) {
@@ -136,7 +136,7 @@ const workTree = {
       li.append(b);list.append(li);
     }
     if(!rows.some(r=>r.item)){const li=document.createElement('li');li.textContent='No matching threads. Check filters or refresh.';list.append(li);}
-    if(focused){let id=focused;while(id&&!list.querySelector('[data-id="'+CSS.escape(id)+'"]'))id=parents.get(id);if(id)this.focus(id);else $('navigator').focus({preventScroll:true});}
+    if(focused){let id=focused;while(id&&!list.querySelector('[data-id="'+CSS.escape(id)+'"]'))id=parents.get(id);if(id)this.focus(id,false);else $('navigator').focus({preventScroll:true});}
     $('navigator').scrollTop=scroll;
     const streamLabel=typeof liveStream!=='undefined'&&liveStream.state==='streaming'?'active conversation live':demoMode?'sample data · no API traffic':'active stream: '+(typeof liveStream!=='undefined'?liveStream.state:'not selected');
     $('tree-health').textContent=this.state.stale?'STALE · '+this.state.error+(this.state.updated?' · last sync '+new Date(this.state.updated).toLocaleTimeString():''):'Synced '+new Date(this.state.updated).toLocaleTimeString()+' · '+streamLabel+'; others 60s visible polling';
@@ -145,7 +145,7 @@ const workTree = {
     $('more').hidden=true;
     renderFilterSummary();
   },
-  focus(id){[...$('threads').querySelectorAll('button')].find(b=>b.dataset.id===id)?.focus({preventScroll:true});},
+  focus(id,reveal=true){const row=[...$('threads').querySelectorAll('button')].find(b=>b.dataset.id===id);row?.focus({preventScroll:true});if(reveal)row?.scrollIntoView({block:'nearest',inline:'nearest'});},
   expand(id,value){const set=new Set(this.config.expanded);if(value??!set.has(id))set.add(id);else set.delete(id);this.config.expanded=[...set];this.render();this.save();}
 };
 let lastNavigatorId = null;

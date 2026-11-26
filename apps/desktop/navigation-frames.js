@@ -50,7 +50,7 @@ const navigationFrames = {
     find:navigatorFilter,collapse:()=>navigateTree(false),expand:()=>navigateTree(true)}),
   picker:Navigation.list({rows:()=>[...$('picker-list').children],index:()=>selected,viewport:()=>$('picker-list'),
     visible:navigationViewport,
-    select:index=>{selected=index;renderPicker();},find:()=>editPickerQuery()}),
+    select:index=>{selected=index;renderPicker(true,true);},find:()=>editPickerQuery()}),
   chat:new Navigation.Controller({
     Next:count=>chatMove('Down',count),Previous:count=>chatMove('Up',count),First:()=>chatMove('First'),Last:()=>chatMove('Last'),
     HalfDown:()=>chatHalfPage(1),HalfUp:()=>chatHalfPage(-1),PageDown:()=>chatHalfPage(1,1),PageUp:()=>chatHalfPage(-1,1),
@@ -81,6 +81,7 @@ function navigationHints() {
   if(scope==='editorPrompt')return 'Vim search / Ex · Enter apply · Esc return to editor';
   if(scope==='picker'||scope==='pickerBrowse')return $('picker-keys').textContent;
   if(scope==='chat'&&currentReference())return referenceLabel(currentReference())+' · '+(primaryMappingLabel('chatReference')||'Unmapped')+' open reference · Enter '+(currentReference().matches('.diagram')?'inspect inline':currentReference().matches('.image-button')?'preview':'open')+' · '+primaryMappingLabel('back')+' back · '+primaryMappingLabel('forward')+' forward';
+  if(scope==='chatControl'&&document.activeElement.matches('pre,table,.diagram'))return 'Arrow keys scroll content · Home / End horizontal bounds · Esc return to chat';
   if(scope==='chatControl')return (document.activeElement.matches('[data-reference],.image-button')?primaryMappingLabel('chatReference')+' open reference · ':'')+'Enter / Space activate · Esc return to chat · '+primaryMappingLabel('windowDown')+' reply window';
   if(scope==='composer')return primaryMappingLabel('normal')+' Normal · '+primaryMappingLabel('windowUp')+' chat · '+primaryMappingLabel('send')+' queue reply';
   if(scope==='composerNormal')return 'Vim motions / i Insert · '+primaryMappingLabel('switchPane',true)+' cycle windows · '+primaryMappingLabel('send')+' queue reply';

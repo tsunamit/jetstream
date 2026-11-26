@@ -5,6 +5,7 @@
   "private": true,
   "main": "main.cjs",
   "scripts": {
+    "scrollbars-smoke": "node scrollbars-smoke.cjs",
     "activity-smoke": "node activity-smoke.cjs",
     "title-rows-smoke": "node title-rows-smoke.cjs",
     "recent-smoke": "node recent-smoke.cjs",

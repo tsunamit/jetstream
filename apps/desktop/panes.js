@@ -151,6 +151,12 @@ function paintChat(scroll = true) {
     for (const object of projection.pieces.filter(p => p.object && p.start < to && p.end > from)) object.node.classList.add('chat-object-selection');
   }
   if (scroll) {
+    const node=piece.node.nodeType===Node.TEXT_NODE?piece.node.parentElement:piece.node;
+    for(let host=node.closest('pre,table');host;host=host.parentElement.closest('pre,table')) {
+      const rect=(range ?? piece.node).getBoundingClientRect(),bounds=host.getBoundingClientRect();
+      if(rect.left<bounds.left)host.scrollLeft+=rect.left-bounds.left;
+      else if(rect.right>bounds.right)host.scrollLeft+=Math.min(rect.right-bounds.right,rect.left-bounds.left);
+    }
     const rect = (range ?? piece.node).getBoundingClientRect(), bounds = transcript.getBoundingClientRect();
     if (rect.top < bounds.top || rect.bottom > bounds.bottom) transcript.scrollTop += rect.top - bounds.top - bounds.height / 3;
   }

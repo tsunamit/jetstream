@@ -8,7 +8,6 @@ const layoutView={
     main.style.setProperty('--sidebar-width',side+'px');main.style.setProperty('--reply-height',reply+'px');
     const width=main.clientWidth-(document.body.classList.contains('sidebar-hidden')?0:side+6);
     main.style.setProperty('--content-gutter',LayoutState.gutter(width,this.config.centeredReading)+'px');
-    main.style.setProperty('--transcript-scrollbar',Math.max(0,transcript.offsetWidth-transcript.clientWidth)+'px');
     main.style.setProperty('--chat-head-max',Math.max(24,main.clientHeight-reply-46)+'px');
     for(const [id,value,min,max] of [['sidebar-resize',side,b.sidebarMin,b.sidebarMax],['reply-resize',reply,size.min,b.replyMax]]){
       const handle=$(id);handle.setAttribute('aria-valuemin',min);handle.setAttribute('aria-valuemax',max);handle.setAttribute('aria-valuenow',value);handle.setAttribute('aria-valuetext',value+' pixels');

@@ -73,7 +73,7 @@ async function showReferenceView(target, preview = false) {
     const card=[...$('entries').children].find(node=>node.dataset.messageId===target.messageId);
     const code=card?.querySelectorAll('.code-block')[target.index]?.querySelector('pre code');
     status.textContent=code ? 'Diagram source · read-only' : 'Source is no longer loaded.';
-    if(code){const pre=document.createElement('pre');pre.textContent=code.textContent;dialog.append(pre);}
+    if(code){const pre=document.createElement('pre');pre.textContent=code.textContent;richText.scrollable(pre,'Diagram source · scroll with arrow keys');dialog.append(pre);}
     return;
   }
   const save=document.createElement('button');save.type='button';save.textContent='Save file…';
