@@ -1,0 +1,64 @@
+const {_electron}=require('./test-support.cjs');
+const assert=require('node:assert/strict');
+const fs=require('node:fs/promises'),os=require('node:os'),path=require('node:path');
+(async()=>{
+  const profile=await fs.mkdtemp(path.join(os.tmpdir(),'jetstream-local-find-'));
+  const captures=process.argv[2]||'/Users/ryan/.capy/work/JETS-44/renders';await fs.mkdir(captures,{recursive:true});
+  let app;
+  try {
+    app=await _electron.launch({args:['.','--demo','--user-data-dir='+profile]});
+    const page=await app.firstWindow();
+    await page.waitForFunction(()=>typeof localFind!=='undefined'&&keyReady&&thread&&!navigating);
+    await page.evaluate(()=>$('help').click());
+    await page.keyboard.press('/');await page.getByRole('searchbox',{name:'Local find query'}).fill('Queue reply');
+    assert.equal(await page.evaluate(()=>localFind.session.matches.length),1);
+    assert.equal(await page.evaluate(()=>CSS.highlights.get('local-find-current').size),1);
+    await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(()=>localFind.session.editing),false);
+    await page.keyboard.press('n');assert.equal(await page.evaluate(()=>localFind.session.current),0);
+    await page.screenshot({path:path.join(captures,'shortcuts-find.png')});
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#shortcuts').evaluate(n=>n.open),true);
+    assert.equal(await page.locator('.local-find-bar').count(),0);
+    await page.keyboard.press('Escape');assert.equal(await page.locator('#shortcuts').evaluate(n=>n.open),false);
+    await page.evaluate(async()=>{await saveKeymaps({...keyConfig,mappings:{...keyConfig.mappings,send:['<C-S-Enter>'],localFind:['f/'],localNextMatch:['m'],localPreviousMatch:['M']}});$('help').click();});
+    await page.keyboard.press('/');assert.equal(await page.locator('.local-find-bar').count(),0);
+    await page.keyboard.type('f/');await page.getByRole('searchbox',{name:'Local find query'}).fill('Ctrl+Shift+Enter');
+    assert.equal(await page.evaluate(()=>localFind.session.matches.length),1);
+    await page.keyboard.press('Escape');await page.keyboard.press('Escape');
+    await page.evaluate(async()=>{await saveKeymaps(Keymaps.defaults(keyMac));$('help').click();const p=document.createElement('p');p.id='find-fixture';p.append('café ',Object.assign(document.createElement('b'),{textContent:'東京'}),'\n😀 café 東京');$('shortcuts').append(p);});
+    await page.keyboard.press('/');await page.getByRole('searchbox',{name:'Local find query'}).fill('café 東京');
+    assert.equal(await page.evaluate(()=>localFind.session.matches.length),2);
+    await page.keyboard.press('Enter');await page.keyboard.press('n');assert.equal(await page.evaluate(()=>localFind.session.current),1);
+    await page.keyboard.press('N');assert.equal(await page.evaluate(()=>localFind.session.current),0);
+    await page.evaluate(()=>$('find-fixture').firstChild.data='changed ');
+    await page.waitForFunction(()=>localFind.session.matches.length===1);
+    await page.keyboard.press('Escape');await page.keyboard.press('Escape');
+    await page.evaluate(()=>$('keymaps-button').click());
+    await page.locator('#map-leader').focus();await page.keyboard.press('/');assert.equal(await page.locator('.local-find-bar').count(),0);
+    await page.locator('#close-keymaps').focus();await page.keyboard.press('/');await page.getByRole('searchbox',{name:'Local find query'}).fill('Binding scopes');
+    assert.ok(await page.evaluate(()=>localFind.session.matches.length)>0);
+    await page.keyboard.press('Escape');await page.keyboard.press('Escape');
+    const before=await page.evaluate(()=>{const row=navigatorRows()[0];row.focus();return {id:row.dataset.id,config:JSON.stringify(workTree.config),top:$('navigator').scrollTop};});
+    await page.keyboard.press('/');await page.getByRole('searchbox',{name:'Local find query'}).fill('release');await page.keyboard.press('Enter');
+    assert.equal(await page.evaluate(()=>JSON.stringify(workTree.config)),before.config);
+    await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>document.activeElement.dataset.id),before.id);
+    assert.equal(await page.evaluate(()=>$('navigator').scrollTop),before.top);
+    await page.evaluate(()=>workActivity.open());await page.waitForFunction(()=>workActivity.dialog.open&&!workActivity.loading);
+    await page.keyboard.press('/');await page.getByRole('searchbox',{name:'Local find query'}).fill('release');await page.keyboard.press('Enter');
+    assert.ok(await page.evaluate(()=>localFind.session.matches.length)>0);
+    await page.screenshot({path:path.join(captures,'activity-find.png')});
+    await page.keyboard.press('Escape');await page.keyboard.press('Escape');
+    await page.evaluate(()=>$('conversation').focus());await page.keyboard.press('/');assert.equal(await page.locator('#chat-search').evaluate(n=>n.open),true);assert.equal(await page.locator('.local-find-bar').count(),0);await page.keyboard.press('Escape');
+    await page.evaluate(()=>showPicker('threads'));await page.keyboard.type('/');assert.equal(await page.locator('#search').inputValue(),'/');assert.equal(await page.locator('.local-find-bar').count(),0);await page.keyboard.press('Escape');await page.keyboard.press('Escape');
+    await page.evaluate(()=>insertDraft());await page.keyboard.type('/');assert.ok(await page.evaluate(()=>composer.text().includes('/')));assert.equal(await page.locator('.local-find-bar').count(),0);
+    await page.keyboard.press('Escape');await page.keyboard.press('/');assert.equal(await page.evaluate(()=>composer.prompt(document.activeElement)),true);assert.equal(await page.locator('.local-find-bar').count(),0);await page.keyboard.press('Escape');
+    await page.evaluate(()=>{$('help').click();$('shortcuts').querySelector('button').dispatchEvent(new KeyboardEvent('keydown',{key:'/',isComposing:true,bubbles:true}));});assert.equal(await page.locator('.local-find-bar').count(),0);
+    for(const width of [640,1100]) {
+      await app.evaluate(({BrowserWindow},width)=>BrowserWindow.getAllWindows()[0].setSize(width,650),width);
+      await page.keyboard.press('/');await page.getByRole('searchbox',{name:'Local find query'}).fill('Reset zoom');await page.keyboard.press('Enter');
+      assert.ok(await page.evaluate(()=>{const r=CSS.highlights.get('local-find-current').values().next().value.getBoundingClientRect();return r.top>=0&&r.bottom<=innerHeight;}));
+      await page.screenshot({path:path.join(captures,'help-'+width+'.png')});await page.keyboard.press('Escape');
+    }
+    console.log('PASS hidden local find: help/effective remaps/inline Unicode/invalidation/cancel/sidebar/activity/native inputs/chat/picker/editor/IME/narrow reveal');
+  } finally {await app?.close();await fs.rm(profile,{recursive:true,force:true});}
+})().catch(error=>{console.error(error);process.exitCode=1;});

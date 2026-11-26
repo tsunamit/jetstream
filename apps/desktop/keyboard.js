@@ -193,6 +193,7 @@ document.addEventListener('keydown', event => {
   if (!keyReady || event.defaultPrevented) return;
   if (event.isComposing || event.keyCode === 229 || event.getModifierState('AltGraph')) { clearKeySequence(); return; }
   if (['Control','Shift','Alt','Meta'].includes(event.key)) return;
+  if(localFind.key(event))return;
   const target = event.target;
   const {dialog,inComposer,scope} = effectiveScope(target);
   if(dialog===referenceDialog && dialog) {
