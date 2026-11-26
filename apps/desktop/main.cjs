@@ -10,14 +10,13 @@ identity.initialize(app, process.argv);
 const dev = !app.isPackaged && process.argv.includes('--dev-launch') ? require('./dev-runtime.cjs').setup({app,args:process.argv,directory:__dirname}) : null;
 const { api } = require('./api.cjs');
 const { demo } = require('./demo.cjs');
-const Keymaps = require('./keymaps.js');
 const WorkTree = require('./sidebar-state.js');
 const Workspace = require('./workspace.cjs');
 const { Streams } = require('./stream.cjs');
 const { Zoom, action: zoomAction } = require('./zoom.cjs');
-const {LayoutSettings}=require('./layout.cjs');
+const {UserConfig, configPath}=require('./user-config.cjs');
 const ConversationSettings=require('./conversation-settings.js');
-let layoutSettings;
+let userConfig;
 let zoom;
 function changeZoom(action) {
   const state = zoom.change(action);
@@ -33,7 +32,6 @@ const creates = new Map();
 const sends = new Map();
 let workspaceRead;
 const treePath = () => path.join(app.getPath('userData'), 'workspace-' + Workspace.scope(key,demoMode) + '.json');
-const configPath = () => path.join(app.getPath('userData'), 'keymaps.json');
 
 const hiddenTest = process.argv.includes('--test-hidden');
 if (hiddenTest && (app.isPackaged || !(process.argv.includes('--demo') || process.argv.includes('--live') && !process.env.CAPY_API_KEY) || !process.argv.some(arg => arg.startsWith('--user-data-dir=') && arg.slice(16).startsWith(require('node:os').tmpdir())))) throw Error('Hidden tests require unpackaged demo/offline live and an isolated temporary profile.');
@@ -100,8 +98,19 @@ const operations = {
     return {id:result.id,hasUnreads:result.hasUnreads};
   },
   zoomState: () => zoom.state(),
-  layoutState: () => layoutSettings.load(),
-  saveLayout: value => layoutSettings.save(value),
+  userConfig: () => userConfig.snapshot(),
+  reloadConfig: () => userConfig.load(),
+  saveConfig: (section,value,revision) => userConfig.update(section,value,revision),
+  migrateToolActivity: value => userConfig.migrateToolActivity(value),
+  openConfig: async () => {
+    if(hiddenTest)return {opened:false,path:userConfig.file};
+    if(!(await fs.lstat(userConfig.file)).isFile())throw Error('Config must be a regular JSON file: '+userConfig.file);
+    const error=await shell.openPath(userConfig.file);
+    if(error)throw Error('Could not open config. Open '+userConfig.file+' in your editor.');
+    return {opened:true,path:userConfig.file};
+  },
+  layoutState: () => ({config:userConfig.config.layout,error:userConfig.error}),
+  saveLayout: (value,revision) => userConfig.update('layout',value,revision).config.layout,
   streamAck: (token, sequence) => { if (typeof token !== 'string' || !Number.isSafeInteger(sequence)) throw Error('Invalid stream acknowledgment.'); streams.ack(token,sequence); },
   stream: input => {
     if (input === null) { streams.stop(); return; }
@@ -148,28 +157,8 @@ const operations = {
     creates.set(input.requestId,{fingerprint,promise});
     try{return await promise;}catch(error){creates.delete(input.requestId);throw error;}
   },
-  keymaps: async () => {
-    let config = Keymaps.defaults(process.platform === 'darwin'), error = '', repairConfig = null;
-    try {
-      const stat = await fs.stat(configPath());
-      if (stat.size > 32768) throw Error('Configuration exceeds 32 KiB.');
-      const saved = JSON.parse(await fs.readFile(configPath(), 'utf8'));
-      config = Keymaps.migrate(saved, process.platform === 'darwin');
-      if (saved.version !== config.version) await operations.saveKeymaps(config);
-    } catch (cause) { if (cause.code !== 'ENOENT') { error = 'Saved keymaps are invalid. Defaults are active. ' + cause.message; repairConfig = cause.config ?? null; } }
-    return {config, error, repairConfig, path:configPath(), mac:process.platform === 'darwin'};
-  },
-  saveKeymaps: async config => {
-    if (JSON.stringify(config).length > 32768) throw Error('Configuration exceeds 32 KiB.');
-    Keymaps.compile(config, process.platform === 'darwin');
-    const serialized = JSON.stringify(config, null, 2) + '\n';
-    configWrite = configWrite.catch(() => {}).then(async () => {
-      await fs.mkdir(app.getPath('userData'), {recursive:true});
-      await fs.writeFile(configPath() + '.tmp', serialized, {mode:0o600});
-      await fs.rename(configPath() + '.tmp', configPath());
-    });
-    await configWrite;
-  },
+  keymaps: () => ({config:userConfig.config.keymaps,error:userConfig.error,repairConfig:null,path:userConfig.file,mac:process.platform==='darwin'}),
+  saveKeymaps: (config,revision) => userConfig.update('keymaps',config,revision),
   copyText: text => {
     if (typeof text !== 'string' || text.length > 200000) throw new Error('Invalid clipboard text.');
     clipboard.writeText(text);
@@ -264,7 +253,10 @@ app.whenReady().then(async () => {
     validate: candidate => api(candidate).projects(), environment: environmentKey, flags: process.argv });
   await connection.start(); changed();
   zoom = new Zoom(app.getPath('userData')); zoom.load();
-  layoutSettings=new LayoutSettings(app.getPath('userData'));
+  userConfig=new UserConfig({file:configPath({args:process.argv,packaged:app.isPackaged,dev:Boolean(dev),profile:app.getPath('userData')}),legacyDirectory:app.getPath('userData'),emit:state=>{
+    if(window&&!window.isDestroyed())window.webContents.send('desk:config',state);
+  }});
+  userConfig.start();
   window = new BrowserWindow({
     show: !hiddenTest, focusable: !hiddenTest, paintWhenInitiallyHidden: true,
     width: 1140, height: 760, minWidth: 640, minHeight: 600,
@@ -300,7 +292,7 @@ app.whenReady().then(async () => {
         throw new Error('Unknown sender.');
       }
       try {
-        if (connection.busy && !['status','keymaps','copyText','zoomState','layoutState','saveLayout'].includes(name)) throw Error('Connection change in progress.');
+        if (connection.busy && !['status','keymaps','saveKeymaps','copyText','zoomState','layoutState','saveLayout','userConfig','reloadConfig','saveConfig','openConfig','migrateToolActivity'].includes(name)) throw Error('Connection change in progress.');
         const write = ['send','createThread','threadReceipt'].includes(name) || name === 'media' && args[2] === 'save';
         if (write) connection.activeWrites++;
         try { return { value: await handler(...args) }; }
@@ -314,4 +306,4 @@ app.whenReady().then(async () => {
   window.loadFile(page);
 });
 app.on('window-all-closed', () => app.quit());
-app.on('before-quit', () => streams.stop());
+app.on('before-quit', () => {streams.stop();userConfig?.close();});

@@ -38,7 +38,7 @@ const fs = require('node:fs/promises'), os = require('node:os'), path = require(
     }
     await text('Mock draft, shared thread ID');
     await page.evaluate(() => togglePin());
-    await page.evaluate(async () => { const config = Keymaps.defaults(true); config.timeout = 777; await desk.saveKeymaps(config); });
+    await page.evaluate(async () => { const config = Keymaps.defaults(true); config.timeout = 777; await desk.saveKeymaps(config,(await desk.userConfig()).revision); });
     assert.equal((await app.evaluate(() => fixtureCalls)).length, 0);
     await page.locator('#connection-mode').selectOption('live'); await page.locator('#connection[open]').waitFor();
     assert.equal(await page.locator('#connection-mode').inputValue(), 'mock');

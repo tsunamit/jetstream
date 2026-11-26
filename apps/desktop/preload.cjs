@@ -8,11 +8,17 @@ methods.push('layoutState','saveLayout');
 methods.push('threadReceipt','threadReadState');
 methods.push('dev');
 methods.push('conversationMetadata');
+methods.push('userConfig','reloadConfig','saveConfig','openConfig','migrateToolActivity');
 contextBridge.exposeInMainWorld('desk', {...Object.fromEntries(methods.map(name => [name, async (...args) => {
   const result = await ipcRenderer.invoke('desk:' + name, ...args);
   if (result.error) throw new Error(result.error);
   return result.value;
-}])), onDev: callback => {
+}])), onConfig: callback => {
+  if(typeof callback!=='function')throw Error('Invalid config listener.');
+  const listener=(_event,state)=>callback(state);
+  ipcRenderer.on('desk:config',listener);
+  return ()=>ipcRenderer.removeListener('desk:config',listener);
+}, onDev: callback => {
   if(typeof callback!=='function')throw Error('Invalid Dev listener.');
   const listener=(_event,state)=>callback(state);
   ipcRenderer.on('desk:dev',listener);

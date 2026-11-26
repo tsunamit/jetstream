@@ -28,12 +28,20 @@ const layoutView={
   schedule(){if(this.frame!==null)return;this.frame=requestAnimationFrame(()=>{this.frame=null;this.apply();});},
   async save(){
     clearTimeout(this.saveTimer);this.saveTimer=null;
-    try{await desk.saveLayout({...this.config});$('layout-status').textContent='Layout saved';}
-    catch(error){$('layout-status').textContent='Layout changed for this session; could not save.';say($('layout-status').textContent);}
+    const revision=this.editRevision??userSettings.revision;
+    this.editRevision=null;
+    try{
+      const result=await desk.saveConfig('layout',{...this.config},revision);
+      applyUserConfig(result);
+      if(keyEditRevision===revision)keyEditRevision=result.revision;
+      $('layout-status').textContent='Layout saved';
+    }
+    catch(error){$('layout-status').textContent=error.message;say(error.message);applyUserConfig(await desk.userConfig(),true);}
   },
   debounce(){clearTimeout(this.saveTimer);this.saveTimer=setTimeout(()=>this.save(),250);},
   reset(key){
     if(this.drag)this.finish(true);
+    this.editRevision=userSettings.revision;
     const defaults=LayoutState.defaults();
     for(const name of key?[key]:['sidebarWidth','replyHeight'])this.config[name]=defaults[name];
     this.apply();this.save();
@@ -41,6 +49,7 @@ const layoutView={
   start(event,key){
     if(!this.ready||this.drag||event.button!==0||!event.isPrimary)return;
     event.preventDefault();clearTimeout(this.saveTimer);this.saveTimer=null;
+    this.editRevision=userSettings.revision;
     const handle=event.currentTarget,vertical=key==='sidebarWidth';
     this.drag={key,handle,id:event.pointerId,start:vertical?event.clientX:event.clientY,value:Number(handle.getAttribute('aria-valuenow')),previous:this.config[key]};
     handle.setPointerCapture(event.pointerId);handle.dataset.dragging='true';
@@ -71,6 +80,7 @@ const layoutView={
     event.preventDefault();event.stopPropagation();
     const next=event.key==='Home'?(vertical?b.sidebarMin:b.replyMin):event.key==='End'?max:LayoutState.clamp(value+delta[event.key],min,max);
     if(Object.hasOwn(delta,event.key)&&next===value)return;
+    if(!this.saveTimer)this.editRevision=userSettings.revision;
     this.config[key]=next;
     this.apply();this.debounce();keyboardMode();
   }
@@ -86,7 +96,7 @@ for(const [id,key] of [['sidebar-resize','sidebarWidth'],['reply-resize','replyH
 $('reset-layout').onclick=()=>layoutView.reset();
 draft.addEventListener('geometry',event=>layoutView.geometry(event));
 draft.addEventListener('compositionend',()=>composer.measure(true));
-$('centered-reading').onchange=()=>{layoutView.config.centeredReading=$('centered-reading').checked;layoutView.apply();layoutView.save();};
+$('centered-reading').onchange=()=>{layoutView.editRevision=userSettings.revision;layoutView.config.centeredReading=$('centered-reading').checked;layoutView.apply();layoutView.save();};
 new ResizeObserver(()=>{
   if(!layoutView.ready)return;
   const restore=layoutView.restore;
@@ -96,4 +106,3 @@ new MutationObserver(()=>{if(layoutView.ready)layoutView.apply();}).observe(docu
 transcript.addEventListener('scroll',()=>{if(layoutView.ready&&!layoutView.drag)layoutView.restore=captureReadingLayout(false);},{passive:true});
 new MutationObserver(()=>{if(layoutView.ready)layoutView.restore=captureReadingLayout(false);}).observe($('entries'),{childList:true,subtree:true,characterData:true});
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&layoutView.ready&&layoutView.saveTimer)layoutView.save();});
-desk.layoutState().then(result=>{layoutView.config=result.config;layoutView.ready=true;layoutView.apply();if(result.error)$('layout-status').textContent=result.error;}).catch(fail);

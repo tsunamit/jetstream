@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Jetstream user config",
+  "type": "object",
+  "required": ["version"],
+  "description": "Unknown harmless keys are preserved but ignored. Runtime additionally rejects private/unsafe field names and validates known command IDs, platform keys, scopes and shortcut collisions.",
+  "properties": {
+    "version": {"const": 1},
+    "showToolActivity": {"type": "boolean", "default": true},
+    "keymaps": {
+      "type": "object",
+      "required": ["version", "leader", "timeout", "mappings"],
+      "additionalProperties": false,
+      "properties": {
+        "version": {"enum": [1, 2, 3]},
+        "leader": {"type": "string", "minLength": 1, "maxLength": 120},
+        "timeout": {"type": "integer", "minimum": 250, "maximum": 3000},
+        "mappings": {"type": "object", "additionalProperties": {"type": "array", "maxItems": 8, "items": {"type": "string", "minLength": 1, "maxLength": 120}}}
+      }
+    },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {"const": 1},
+        "sidebarWidth": {"type": "integer", "minimum": 95, "maximum": 640},
+        "replyHeight": {"type": "integer", "minimum": 72, "maximum": 1200},
+        "centeredReading": {"type": "boolean"}
+      }
+    }
+  }
+}

@@ -7,6 +7,8 @@ const compactShell=matchMedia('(max-width:720px)');
 function compactChatActions() { $('chat-actions').open=!compactShell.matches; }
 compactShell.addEventListener('change',compactChatActions);compactChatActions();
 const keyHandlers = {
+  openConfig:()=>desk.openConfig(),
+  reloadConfig:()=>desk.reloadConfig().then(applyUserConfig),
   workActivity:()=>workActivity.open(),
   conversationModel:()=>conversationControls.open(),
   chatReference:openCurrentReference,
@@ -125,7 +127,9 @@ function renderKeyHints() {
   $('pin-current').textContent = (pins.includes(thread?.id) ? 'Unpin current thread' : 'Pin current thread') + keyHint('pin');
   keyboardMode();
 }
+let keyEditRevision;
 function editKeymaps() {
+  keyEditRevision=userSettings.revision;
   const editable = keyRepairConfig ?? keyConfig;
   $('map-leader').value = editable.leader;
   $('map-timeout').value = editable.timeout;
@@ -143,13 +147,12 @@ function editKeymaps() {
 }
 $('keymaps-button').onclick = () => { clearKeySequence(); editKeymaps(); settingsDialog.showModal(); };
 $('close-keymaps').onclick = () => settingsDialog.close();
-async function saveKeymaps(config) {
+async function saveKeymaps(config,revision=userSettings.revision) {
   try {
-    const compiled = Keymaps.compile(config, keyMac);
-    await desk.saveKeymaps(config);
-    keyConfig = config; keyBindings = compiled; keyConfigIssue = ''; keyRepairConfig = null; keyReady = true;
-    syncComposerBindings();
-    clearKeySequence(); renderKeyHints();
+    Keymaps.compile(config, keyMac);
+    const result=await desk.saveConfig('keymaps',config,revision);
+    applyUserConfig(result);
+    keyEditRevision=result.revision;
     $('keymaps-error').textContent = 'Saved. Active now and after restart.';
     return true;
   } catch (error) { $('keymaps-error').textContent = error.message; return false; }
@@ -158,9 +161,9 @@ $('keymaps-form').onsubmit = async event => {
   event.preventDefault();
   const mappings = {};
   for (const input of $('keymaps-rows').querySelectorAll('input')) mappings[input.dataset.action] = input.value.trim() ? input.value.split('|').map(value => value.trim()) : [];
-  await saveKeymaps({version:3, leader:$('map-leader').value, timeout:Number($('map-timeout').value), mappings});
+  await saveKeymaps({version:3, leader:$('map-leader').value, timeout:Number($('map-timeout').value), mappings},keyEditRevision);
 };
-$('reset-keymaps').onclick = async () => { if (await saveKeymaps(Keymaps.defaults(keyMac))) editKeymaps(); };
+$('reset-keymaps').onclick = async () => { if (await saveKeymaps(Keymaps.defaults(keyMac),keyEditRevision)) editKeymaps(); };
 document.addEventListener('focusin', clearKeySequence);
 document.addEventListener('pointerdown', clearKeySequence, true);
 document.addEventListener('compositionstart', clearKeySequence, true);
@@ -251,14 +254,3 @@ document.addEventListener('keydown', event => {
     keyboardMode();
   }
 }, true);
-desk.keymaps().then(result => {
-  keyConfig = result.config; keyMac = result.mac;
-  keyConfigIssue = result.error;
-  keyRepairConfig = result.repairConfig;
-  keyBindings = Keymaps.compile(keyConfig, keyMac); keyReady = true;
-  syncComposerBindings();
-  $('keymaps-location').textContent = 'Stored separately from demo data and API keys: ' + result.path;
-  $('keymaps-error').textContent = result.error;
-  renderKeyHints();
-  if (result.error) say(result.error + ' Open Keymaps to repair.');
-}).catch(error => { $('keymaps-error').textContent = error.message; fail(error); });
