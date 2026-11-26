@@ -50,7 +50,7 @@ async function main() {
     assert.equal(await page.locator('#mode').textContent(), 'COMPOSER NORMAL');
     await page.keyboard.press('i');
     await page.keyboard.press(process.platform === 'darwin' ? 'Meta+Enter' : 'Control+Enter');
-    await page.getByText('Saved in this demo session.').waitFor();
+    await page.getByText('Saved in demo.', {exact:true}).waitFor();
     await page.locator('article').getByText('I’ll test the packaged app first', { exact:false }).waitFor();
     await page.getByRole('button', { name:'Refresh' }).click();
     await page.locator('article').getByText('I’ll test the packaged app first', { exact:false }).waitFor();
