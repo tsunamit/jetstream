@@ -72,7 +72,7 @@ const outgoing = {
       workActivity.accepted(entry.threadId);
       conversationControls.sent(entry);
       if(composer.clearSent(entry.threadId,entry.sentDoc))drafts.delete(entry.threadId);
-      if(thread?.id===entry.threadId){say(demoMode?'Saved in this demo session.':'Accepted for queue delivery. This does not mean the agent has started.');if(liveStream.state==='complete')liveStream.select(thread);if(!messageBusy)loadMessages().catch(fail);}
+      if(thread?.id===entry.threadId){say(demoMode?'Saved in demo.':'Queued · accepted.',4000);if(liveStream.state==='complete')liveStream.select(thread);if(!messageBusy)loadMessages().catch(fail);}
     } catch(error) {entry.state='failed';entry.error=error.message;if(thread?.id===entry.threadId)fail(error);}
     finally {pending=false;this.paint(entry.threadId);updateSend();}
   }
@@ -90,7 +90,8 @@ function showZoom(state) {
 }
 desk.onZoom(showZoom);
 desk.zoomState().then(showZoom);
-const say = text => { $('notice').textContent = text; };
+let noticeTimer;
+const say = (text,duration=0) => { clearTimeout(noticeTimer);$('notice').textContent = text;if(duration)noticeTimer=setTimeout(()=>{if($('notice').textContent===text)$('notice').textContent='';},duration); };
 const fail = error => say(error.message || 'Request failed.');
 const titleOf = item => item.title || 'Untitled thread';
 const keyboardMode = () => {

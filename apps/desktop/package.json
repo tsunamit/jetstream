@@ -24,6 +24,7 @@
     "references-smoke": "node references-smoke.cjs",
     "splits-smoke": "node splits-smoke.cjs",
     "reply-growth-smoke": "node reply-growth-smoke.cjs",
+    "reply-layout-smoke": "node reply-layout-smoke.cjs",
     "zoom-smoke": "node zoom-smoke.cjs",
     "stream-smoke": "node stream-smoke.cjs",
     "panes-smoke": "node panes-smoke.cjs",
