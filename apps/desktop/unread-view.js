@@ -40,9 +40,9 @@ const readState = {
   },
   async write(id,action,eventId){
     const s=this.model.get(id);if(s.pending)return;
-    const revision=this.model.begin(id,action);if(action==='read')s.attempted=eventId;
+    const started=Date.now(),revision=this.model.begin(id,action);if(action==='read')s.attempted=eventId;
     this.controls();
-    try{const result=await desk.threadReceipt({id,action,...(eventId?{eventId}:{})});this.model.finish(id,revision,result);}
+    try{const result=await desk.threadReceipt({id,action,...(eventId?{eventId}:{})});this.model.finish(id,revision,result);if(action==='read'&&result?.hasUnreads===false)workActivity.read(id,started);}
     catch(error){this.model.finish(id,revision,null,error);say('Read status was not synced. Use Mark read/unread to retry.');}
     this.paint();this.schedule();
   },
