@@ -1,6 +1,6 @@
 {
-  "name": "capy-terminal",
-  "productName": "Capy Terminal",
+  "name": "jetstream-desktop",
+  "productName": "Jetstream",
   "version": "0.1.0",
   "private": true,
   "main": "main.cjs",
@@ -14,7 +14,7 @@
     "dev": "node dev-launch.cjs",
     "dev-smoke": "node dev-smoke.cjs",
     "dev-test": "node --test dev-watch.test.cjs dev-runtime.test.cjs",
-    "test": "node --test working-cube.test.cjs api.test.cjs media.test.cjs keymaps.test.cjs motions.test.cjs workspace.test.cjs transcript.test.cjs navigation.test.cjs connection.test.cjs navigation-ux.test.cjs stream.test.cjs zoom.test.cjs unread.test.cjs central-search.test.cjs layout-state.test.cjs reference-targets.test.cjs activity-state.test.cjs keyboard-routing.test.cjs chat-geometry.test.cjs conversation-settings.test.cjs",
+    "test": "node --test working-cube.test.cjs api.test.cjs media.test.cjs keymaps.test.cjs motions.test.cjs workspace.test.cjs transcript.test.cjs navigation.test.cjs connection.test.cjs navigation-ux.test.cjs stream.test.cjs zoom.test.cjs unread.test.cjs central-search.test.cjs layout-state.test.cjs reference-targets.test.cjs activity-state.test.cjs keyboard-routing.test.cjs chat-geometry.test.cjs conversation-settings.test.cjs product-identity.test.cjs",
     "keyboard-routing-smoke": "node keyboard-routing-smoke.cjs",
     "wrapped-chat-smoke": "node wrapped-chat-smoke.cjs",
     "working-smoke": "node working-smoke.cjs",
@@ -34,12 +34,13 @@
     "history-smoke": "node history-smoke.cjs",
     "picker-smoke": "node picker-smoke.cjs",
     "postinstall": "install-electron",
-    "pack": "electron-packager . 'Capy Terminal' --platform=darwin --arch=arm64 --out=dist --ignore='^/(dist|build|\\.gitignore|dev-.*|Capy Terminal Dev\\.command|DEV\\.md|.*-smoke\\.cjs|smoke\\.cjs|.*\\.test\\.cjs|README\\.md|test-support\\.cjs|hidden-proof\\.cjs)$' --app-bundle-id=local.ryan.capy-terminal --overwrite",
-    "postpack": "codesign --force --deep --sign - 'dist/Capy Terminal-darwin-arm64/Capy Terminal.app'",
+    "pack": "electron-packager . 'Jetstream' --platform=darwin --arch=arm64 --out=dist --ignore='^/(dist|build|\\.gitignore|dev-.*|(Capy Terminal Dev|Jetstream Dev)\\.command|DEV\\.md|.*-smoke\\.cjs|smoke\\.cjs|.*\\.test\\.cjs|README\\.md|test-support\\.cjs|hidden-proof\\.cjs)$' --app-bundle-id=local.ryan.capy-terminal --overwrite",
+    "postpack": "codesign --force --deep --sign - 'dist/Jetstream-darwin-arm64/Jetstream.app'",
     "composer-smoke": "node composer-smoke.cjs",
     "halfpage-smoke": "node halfpage-smoke.cjs",
     "hidden-proof": "node hidden-proof.cjs",
-    "windows-smoke": "node windows-smoke.cjs"
+    "windows-smoke": "node windows-smoke.cjs",
+    "branding-smoke": "node branding-smoke.cjs"
   },
   "devDependencies": {
     "@electron/packager": "20.3.0",
