@@ -1,0 +1,104 @@
+const devReload = {
+  enabled:false, restoring:false, busy:false, button:null, output:null, version:0,
+  view(view) {
+    if(!view)return null;
+    const {transcriptState,...safe}=view;
+    return safe;
+  },
+  capture() {
+    if(thread)drafts.set(thread.id,draft.value);
+    if(historyIndex>=0)history[historyIndex]=captureView();
+    return {view:this.view(captureView()),history:history.map(view=>this.view(view)),historyIndex,
+      drafts:[...drafts],paneStates:[...paneStates],layout:{...layoutView.config},
+      navigatorQuery,sidebarHidden:document.body.classList.contains('sidebar-hidden'),
+      outgoing:[...outgoing.items.values()].map(({sentDoc,...entry})=>entry),
+      unread:[...readState.model.items],showToolActivity};
+  },
+  async reload() {
+    if(!this.enabled||this.busy)return;
+    if(pending||changingConnection||navigating||layoutView.drag||[...readState.model.items.values()].some(state=>state.pending)||document.querySelector('dialog[open]')||composer.prompt()) {
+      this.output.textContent='Finish the send, navigation, drag or dialog before reloading.';return;
+    }
+    this.busy=true;
+    try {
+      await desk.dev('prepare');
+      if(pending||changingConnection||navigating||layoutView.drag||[...readState.model.items.values()].some(state=>state.pending)||document.querySelector('dialog[open]')||composer.prompt())throw Error('Finish the current interaction, then reload.');
+      const snapshot=this.capture();document.body.inert=true;
+      await desk.dev('reload',snapshot);
+    }
+    catch(error){document.body.inert=false;this.output.textContent=error.message;this.busy=false;}
+  },
+  async style(version) {
+    this.styleVersion=version;
+    const old=document.querySelector('link[rel="stylesheet"][href^="style.css"]');
+    if(!old)return;
+    const selection=getSelection(),ranges=selection ? Array.from({length:selection.rangeCount},(_,i)=>selection.getRangeAt(i).cloneRange()) : [];
+    const scroll=transcript.scrollTop,editorScroll=composer.view?.scrollDOM.scrollTop;
+    const next=old.cloneNode();next.href='style.css?dev='+version;
+    await new Promise((resolve,reject)=>{next.onload=resolve;next.onerror=reject;old.after(next);}).catch(()=>{next.remove();throw Error('CSS update failed; the previous stylesheet is still active.');});
+    if(this.styleVersion!==version){next.remove();return;}
+    old.remove();
+    if(selection&&ranges.length){selection.removeAllRanges();for(const range of ranges)selection.addRange(range);}
+    transcript.scrollTop=scroll;if(composer.view)composer.view.scrollDOM.scrollTop=editorScroll;
+    composer.measure();this.output.textContent='Dev · CSS updated without renderer reload';
+  },
+  setup(notice) {
+    if(this.enabled)return;this.enabled=true;
+    document.title='Capy Terminal Dev';
+    document.querySelector('.brand').append(document.createTextNode(' / DEV'));
+    const box=document.createElement('div');box.id='dev-tools';
+    box.style.cssText='position:fixed;right:12px;bottom:38px;z-index:1000;max-width:65vw;background:#202629;color:#e6ebe7;padding:5px 9px;border:1px solid #789b83;font:12px system-ui';
+    this.output=document.createElement('output');this.output.id='dev-notice';this.output.textContent=notice;
+    this.button=document.createElement('button');this.button.id='dev-reload';this.button.textContent='Reload renderer · ⌘R';this.button.onclick=()=>this.reload();
+    box.append(this.output,document.createTextNode(' '),this.button);document.body.append(box);
+    desk.onDev(event=>{
+      if(event.type==='reload'){this.reload();return;}
+      if(event.type==='style')this.style(event.version).catch(error=>{this.output.textContent=error.message;});
+      else this.output.textContent=event.notice;
+    });
+    const resume=event=>{
+      if(!event.isTrusted||this.restoring)return;
+      desk.dev('resume').catch(()=>{});this.holdReads=false;
+    };
+    for(const event of ['keydown','pointerdown','wheel'])document.addEventListener(event,resume,{capture:true,passive:true});
+  },
+  async restore(status) {
+    if(!status.dev)return false;
+    this.setup(status.dev.notice);
+    const saved=status.dev.checkpoint;if(!saved)return false;
+    this.restoring=true;this.holdReads=true;
+    try {
+      for(const [id,text] of saved.drafts)drafts.set(id,text);
+      for(const [id,state] of saved.paneStates){paneStates.set(id,state);if(drafts.has(id)){composer.switchTo(id,drafts.get(id));composer.restore(state.editor);}}
+      for(const entry of saved.outgoing)outgoing.items.set(entry.clientKey,entry);
+      showToolActivity=saved.showToolActivity;toolActivityHints();
+      await projects(await desk.projects(),true);
+      const view=saved.view;
+      navigatorQuery=saved.navigatorQuery;
+      toggleSidebar(!saved.sidebarHidden,false);
+      await openThread(view.item,{projectId:view.projectId,replace:true,target:view.target});
+      for(const [id,state] of saved.unread)readState.model.items.set(id,state);
+      readState.model.version=Math.max(readState.model.version,...saved.unread.map(([,state])=>state.revision));
+      let budget=Math.max(0,30-messageState.pages);
+      while(thread&&budget>0&&(messageState.next||messageState.before&&messageState.pages<view.pages)) {
+        const prior=messageState.pages;
+        await loadMessages(!messageState.next,false,Math.min(5,budget));
+        const used=messageState.pages-prior;
+        if(!used)break;
+        budget-=used;
+      }
+      history=saved.history;historyIndex=saved.historyIndex;historyControls();
+      layoutView.config=LayoutState.config(saved.layout);layoutView.apply(()=>{});
+      restorePaneState(thread?.id,view.modal);pane=view.pane;
+      const focus=view.focus.startsWith('thread:')?[...$('threads').querySelectorAll('button')].find(row=>row.dataset.id===view.focus.slice(7)):$(view.focus);
+      if(view.focus==='draft')composer.view?.focus();else (focus??$(view.pane))?.focus({preventScroll:true});
+      transcript.scrollTop=view.scroll;$('navigator').scrollTop=view.navigatorScroll;
+      keyboardMode();
+      this.output.textContent='Dev · restored drafts and context · read acknowledgments paused until input';
+      return true;
+    } catch {
+      this.output.textContent='Dev · drafts retained; context restoration failed. Choose the thread again. Read acknowledgments remain paused.';
+      return true;
+    } finally {this.restoring=false;}
+  }
+};
