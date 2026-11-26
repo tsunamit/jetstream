@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src data: blob:; base-uri 'none'; form-action 'none'; connect-src 'none'">
+  <title>Capy Terminal</title>
+  <link rel="stylesheet" href="style.css">
+  <script defer src="reference-targets.js"></script>
+  <script defer src="rich.bundle.js"></script>
+  <script defer src="keymaps.js"></script>
+  <script defer src="motions.js"></script>
+  <script defer src="composer.bundle.js"></script>
+  <script defer src="sidebar-state.js"></script>
+  <script defer src="layout-state.js"></script>
+  <script defer src="transcript.js"></script>
+  <script defer src="stream-state.js"></script>
+  <script defer src="unread-state.js"></script>
+  <script defer src="navigation.js"></script>
+  <script defer src="renderer.js"></script>
+  <script defer src="sidebar.js"></script>
+  <script defer src="new-thread.js"></script>
+  <script defer src="central-search.js"></script>
+  <script defer src="picker.js"></script>
+  <script defer src="panes.js"></script>
+  <script defer src="reference-view.js"></script>
+  <script defer src="layout-view.js"></script>
+  <script defer src="navigation-frames.js"></script>
+  <script defer src="keyboard.js"></script>
+  <script defer src="stream-view.js"></script>
+  <script defer src="unread-view.js"></script>
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span aria-hidden="true">▰</span> CAPY<span class="muted"> / TERMINAL</span></div>
+    <button id="toggle-sidebar" type="button" aria-controls="navigator" aria-expanded="true">Hide sidebar</button>
+    <div class="actions"><button id="back" disabled>← Back</button><button id="forward" disabled>Forward →</button><button id="find">Jump</button><label>Mode <select id="connection-mode" aria-label="Connection mode"><option value="mock">Mock</option><option value="live">Live</option></select></label><span id="connection-state" class="badge">OFFLINE</span><button id="connect">Connect</button><button id="help">? Shortcuts</button><button id="keymaps-button">Keymaps</button></div>
+  </header>
+  <main>
+    <aside id="navigator" tabindex="0" aria-label="Navigator">
+      <label for="projects">PROJECT</label><select id="projects" disabled></select>
+      <div class="tree-toolbar"><button id="new-thread-button">New thread</button><button id="work-tree-button">Work tree</button></div>
+      <div id="filter-state"><span id="filter-summary"></span><button id="clear-filters" type="button" hidden>Clear filters</button></div>
+      <div id="tree-controls" hidden></div>
+      <h2 id="threads-heading">THREADS</h2>
+      <div id="pins" hidden><h2>QUICK JUMPS</h2><div id="pin-list"></div><button id="pin-current">Pin current thread</button></div>
+      <nav id="activity-links" aria-label="Activity pickers" hidden>
+        <button data-picker="running">1 running</button><button data-picker="needs">1 needs me</button><button data-picker="results">4 results</button>
+      </nav>
+      <ul id="threads"></ul>
+      <button id="more" hidden>More threads</button>
+    </aside>
+    <div id="sidebar-resize" class="split-handle" role="separator" tabindex="0" aria-label="Sidebar width" aria-orientation="vertical" aria-controls="navigator" title="Drag to resize sidebar · Left/Right · Home/End · double-click to reset"></div>
+    <section id="conversation" tabindex="0" aria-label="Conversation">
+      <header class="thread-head">
+        <div><div id="thread-code" class="eyebrow">WORKSPACE</div><h1 id="title">Open a thread</h1></div>
+        <div><details id="chat-actions" open><summary>Chat actions</summary><div><button id="chat-cursor">Chat cursor</button><button id="chat-select">Select text</button><button id="chat-copy">Copy selection</button><button id="toggle-tool-activity" type="button" aria-pressed="true">Tool activity: shown</button></div></details><button id="refresh" disabled>Refresh</button><span id="tool-visibility-status" class="muted" hidden>Tool activity hidden</span></div>
+      </header>
+      <div id="transcript" tabindex="0" aria-label="Transcript">
+        <button id="earlier" hidden>Earlier messages</button>
+        <div id="entries"></div>
+        <button id="newer" hidden>Newer messages</button>
+        <span id="message-health" role="status"></span>
+      </div>
+    </section>
+      <div id="reply-resize" class="split-handle" role="separator" tabindex="0" aria-label="Reply height" aria-orientation="horizontal" aria-controls="composer" title="Drag to resize reply · Up/Down · Home/End · double-click to reset"></div>
+      <form id="composer" aria-labelledby="composer-title" tabindex="-1">
+        <div id="composer-title" class="eyebrow">REPLY</div>
+        <div id="draft" aria-label="Reply editor"></div>
+        <div class="composer-actions"><span id="notice" role="status"></span><button id="edit-reply" type="button">Edit reply</button><button id="send" type="submit" disabled>Queue message</button></div>
+      </form>
+  </main>
+  <footer id="statusline" aria-label="Editor status"><span id="mode">NORMAL</span><span id="pane">navigator</span><span id="status-context"></span><span id="status-position"></span><span id="status-sequence" aria-live="polite"></span><span id="status-connection"></span><span class="keys" id="active-keys"></span></footer>
+  <dialog id="shortcuts">
+    <form method="dialog"><header><h2>Keyboard shortcuts</h2><button aria-label="Close shortcuts">Close</button></header></form>
+    <p>Tab moves focus. Enter activates focused buttons. Escape cancels dialogs/pending sequences and keeps the composer in Normal. The composer uses CodeMirror Vim (counts, operators, text objects, Visual/block, search, registers, macros, undo/redo, dot), not a Neovim runtime. Keymaps can be changed from the header.</p><dl id="active-shortcuts"></dl>
+  </dialog>
+  <dialog id="keymaps-settings" aria-labelledby="keymaps-title">
+    <header><h2 id="keymaps-title">Keymaps</h2><button id="close-keymaps">Close</button></header>
+    <details class="keymap-guide"><summary>Binding scopes and notation</summary><p>App navigation runs in navigator and chat. The reply is a separate window below chat. Use leader w h/j/k/l, Ctrl W then h/j/k/l, or direct Ctrl h/j/k/l. Direct Ctrl window moves also work while editing; leader sequences run only in Normal/Visual. Idle app leader/pane/Alt-history bindings also work in composer Normal/Visual; other editor keys belong to the bundled Vim engine. Chat mappings also run in chat Visual. Explicit legacy composerNormal aliases remain supported. Global runs in the main window, including reply, but never in a dialog. Picker mappings run in Query and Browse; plain Browse motions never replace query typing. Ctrl PageDown/PageUp changes collection. No letter mappings run in unrelated text fields. Composer Ctrl O/I/R/D/U always belong to Vim; Ex/search prompts never trigger app commands.</p>
+    <p>To use Space as leader, enter &lt;Space&gt; in the Leader field below, then click Save keymaps. Press Space, r, d for recently done turns; Space, r, t for recent threads overall; Space, r, c for recent captain visits. Space w h/j/k/l moves between windows; Space w w cycles them. These leader sequences run in Normal mode. Command K on Mac (Ctrl Shift K on Linux) is a separate quick opener. Typing jk in composer Insert returns to Normal; configure it in Reply: enter composer normal.</p>
+    <p>Use letters (gt), &lt;leader&gt;rd, &lt;Space&gt;, &lt;Enter&gt;, &lt;C-w&gt;h. C = Ctrl, A = Alt, M = Meta (Mac), S = Shift, D = platform primary. Separate alternatives with |. Empty means unmapped. Escape cancels; Tab and native editing shortcuts are reserved.</p></details>
+    <p id="keymaps-location" class="muted"></p>
+    <fieldset id="layout-settings"><legend>View layout</legend><label><input id="centered-reading" type="checkbox" checked> Centered reading width</label><p class="muted">Centers chat text only when the chat pane is wide enough. Reply and sidebar keep their full width.</p><button id="reset-layout" type="button">Reset pane sizes</button><span id="layout-status" role="status"></span></fieldset>
+    <form id="keymaps-form">
+      <div class="keymaps-options"><label>Leader<input id="map-leader" required></label><label>Sequence timeout (ms)<input id="map-timeout" type="number" min="250" max="3000" required></label></div>
+      <div id="keymaps-rows"></div>
+      <div class="keymaps-save"><button type="submit">Save keymaps</button><button id="reset-keymaps" type="button">Reset defaults</button><span id="keymaps-error" role="status" aria-live="polite"></span></div>
+    </form>
+  </dialog>
+  <dialog id="list-filter" aria-labelledby="list-filter-title"><form id="list-filter-form"><header><h2 id="list-filter-title">Filter navigator</h2><button type="button" id="close-list-filter">Cancel</button></header><label for="list-query">Title or code · current list preferences stay active</label><input id="list-query" type="search" maxlength="200" autocomplete="off"><button type="submit">Apply filter</button><p>Enter applies · Esc keeps the previous filter and selected row.</p></form></dialog>
+  <dialog id="chat-search" aria-labelledby="chat-search-title"><form id="chat-search-form"><header><h2 id="chat-search-title">Search loaded conversation</h2><button type="button" id="close-chat-search">Close</button></header><label for="chat-query">TEXT · loaded messages only</label><input id="chat-query" type="search" autocomplete="off"><button type="submit">Find next</button><p id="chat-search-status" role="status"></p></form></dialog>
+  <dialog id="picker" aria-labelledby="picker-title">
+    <header><div><h2 id="picker-title">Jump to a thread</h2><span class="muted">Demo prototype · all projects · sample activity / session visits</span></div><button id="close-picker">Esc · Close</button></header>
+    <nav id="picker-tabs" aria-label="Picker collection">
+      <button data-picker="centralSearch">Search</button>
+      <button data-picker="threads">Threads</button><button data-picker="running">Running</button><button data-picker="needs">Needs me</button><button data-picker="results">Recent results</button>
+      <button data-picker="pins">Pinned</button>
+      <button data-picker="captains">Recent captains</button>
+    </nav>
+    <label for="picker-search">FUZZY SEARCH</label>
+    <input id="picker-search" type="search" autocomplete="off" placeholder="Search titles, codes, or updates…" role="combobox" aria-controls="picker-list" aria-expanded="true" aria-autocomplete="list">
+    <div class="picker-columns">
+      <div><div id="picker-count" role="status"></div><button id="picker-browse" type="button">Browse results</button><div id="picker-list" role="listbox" aria-label="Search results" tabindex="0"></div></div>
+      <div id="picker-preview" aria-label="Selected result preview"><div id="preview-meta" class="eyebrow"></div><h3 id="preview-title"></h3><p id="preview-text"></p><p id="preview-note" class="muted"></p></div>
+    </div>
+    <div class="picker-footer"><span id="picker-keys"></span><button id="picker-open">Open thread</button></div>
+  </dialog>
+  <dialog id="connection" aria-labelledby="connection-title">
+    <form id="key-form"><header><h2 id="connection-title">Connect to Capy</h2><button type="button" id="close-connect">Close</button></header>
+      <p>Remembered keys are encrypted by Electron safeStorage using macOS Keychain. If secure storage is unavailable, the connection is session-only.</p><label for="key">API KEY</label>
+      <input id="key" type="password" autocomplete="off" spellcheck="false" required>
+      <label><input id="remember-key" type="checkbox" checked> Remember securely on this Mac</label>
+      <p id="saved-key-status"></p><button id="forget-key" type="button">Forget saved key and disconnect</button>
+      <p>Forget removes this Mac’s saved key, not the API key at Capy. Revoke it separately at Capy if needed.</p>
+      <div class="composer-actions"><span id="key-error" role="status"></span><button id="save-key">Connect</button></div>
+    </form>
+  </dialog>
+  <dialog id="new-thread" aria-labelledby="new-thread-title">
+    <header><h2 id="new-thread-title">New thread</h2><button id="new-close">Close</button></header>
+    <p id="new-note">Explicit submit starts a real agent. No thread is created while choosing options.</p>
+    <form id="new-thread-form">
+      <label>Initial prompt<textarea id="new-prompt" required maxlength="30000" rows="5"></textarea></label>
+      <label>Project<select id="new-project" required></select></label>
+      <label>Machine<select id="new-machine"><option value="cloud">Cloud</option><option disabled>Paired device — discovery unavailable</option><option disabled>This Mac / current checkout — no public discovery API</option></select></label>
+      <p class="muted">The API accepts explicit device IDs/workspaces but cannot list or validate paired devices. Local placement is unavailable here; nothing runs in this folder.</p>
+      <label>Cloud size<select id="new-size"><option value="">Project default</option><option>small</option><option>medium</option><option>large</option><option>ultra</option><option>hyper</option><option>bigguy</option></select></label>
+      <p class="muted">Cloud machine time and model usage may be billed. Plan/size eligibility is checked by the server; no cost estimate is available from this catalog.</p>
+      <label>Model<select id="new-model"><option value="">Account default (server resolves availability)</option></select></label>
+      <label>Reasoning strength<select id="new-reasoning"><option value="">Model default</option></select></label>
+      <div id="new-modes"></div><p class="muted">Daybreak is not advertised by the model catalog and is unavailable here.</p>
+      <p id="new-summary"></p><p id="new-error" role="status" aria-live="polite"></p>
+      <button id="new-reload" type="button">Refresh availability</button><button id="new-submit" type="submit" disabled>Create thread</button>
+    </form>
+  </dialog>
+</body>
+</html>

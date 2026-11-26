@@ -1,0 +1,65 @@
+const {_electron}=require('./test-support.cjs');
+const fs=require('node:fs/promises'),path=require('node:path'),os=require('node:os'),assert=require('node:assert/strict');
+(async()=>{
+ const profile=await fs.mkdtemp(path.join(os.tmpdir(),'capy-navigation-'));let app;
+ try {
+  app=await _electron.launch({args:['.','--demo','--user-data-dir='+profile]});
+  const page=await app.firstWindow();page.setDefaultTimeout(8000);
+  await page.getByRole('heading',{name:'Tighten the release checklist'}).waitFor();
+  await page.waitForFunction(()=>keyReady&&!navigating&&thread);
+  const errors=[];page.on('pageerror',e=>errors.push(e.message));
+  const press=(key,options={})=>page.evaluate(async({key,options})=>{const e=new KeyboardEvent('keydown',{key,bubbles:true,cancelable:true,...options});document.activeElement.dispatchEvent(e);await Promise.resolve();return e.defaultPrevented;},{key,options});
+  const row=()=>page.evaluate(()=>navigatorRows().indexOf(document.activeElement));
+  async function shot(name){if(!process.argv[2])return;await fs.mkdir(process.argv[2],{recursive:true});await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));const png=await app.evaluate(async({BrowserWindow})=>{const w=BrowserWindow.getAllWindows()[0];assertHidden=w.isVisible()||w.isFocused();if(assertHidden)throw Error('Visible test window');return(await w.capturePage()).toPNG().toString('base64');});await fs.writeFile(path.join(process.argv[2],name+'.png'),Buffer.from(png,'base64'));}
+  await page.evaluate(()=>{
+   const projects=[{id:'p1',name:'Navigation fixture'},{id:'p2',name:'Other project'}];
+   const threads=Array.from({length:60},(_,i)=>({id:'nav-'+i,code:'NAV-'+i,title:'Release item '+i+(i%3===0?' with a longer wrapped title':''),projectId:'p1',status:'idle'}));
+   threads.push({id:'crew',parentId:'captain-nav',title:'Nested review',projectId:'p1',status:'waiting'});
+   const data={projects,threads,captains:[{id:'captain-nav',title:'Release captain',projectId:'p1',isCaptain:true,status:'working'}],activity:[]};
+   catalog=data;workTree.enabled=true;workTree.state.accept(data);workTree.config={...WorkTree.defaults(),project:'all',mode:'activity'};workTree.controls();workTree.render();$('navigator').focus();
+  });
+  await page.keyboard.type('gg');assert.equal(await row(),0);
+  assert.equal(await press('j',{repeat:true}),true);assert.equal(await row(),1);
+  await page.keyboard.type('G');assert.equal(await row(),61);await press('j',{repeat:true});assert.equal(await row(),61);
+  await page.keyboard.type('gg');await press('k',{repeat:true});assert.equal(await row(),0);
+  await page.keyboard.type('g');await page.waitForTimeout(1000);await page.keyboard.type('g');assert.equal(await page.evaluate(()=>keySequence.length),1);await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>keySequence.length),0);
+  await page.keyboard.type('g');await page.locator('#conversation').focus();await page.locator('#navigator').focus();assert.equal(await page.evaluate(()=>keySequence.length),0);
+  await page.keyboard.type('gg');
+  const chunk=await page.evaluate(()=>({height:$('navigator').clientHeight,top:navigatorRows()[0].getBoundingClientRect().top}));
+  await press('d',{ctrlKey:true});const half=await row();assert.ok(half>0);assert.ok(await page.evaluate(({height,top})=>Math.abs(navigatorRows()[navigatorRows().indexOf(document.activeElement)].getBoundingClientRect().top-top)<90,chunk));
+  await page.keyboard.type('gg');await press('f',{ctrlKey:true});assert.ok(await row()>half);
+  await page.keyboard.type('ggjj/');await page.locator('#list-query').fill('no match');await page.keyboard.press('Escape');await page.waitForFunction(()=>!$('list-filter').open&&$('threads').contains(document.activeElement));assert.equal(await row(),2);assert.equal(await page.evaluate(()=>workTree.config.text),'');
+  await page.keyboard.type('/');await page.locator('#list-query').fill('item 1');await page.keyboard.press('Enter');await page.waitForFunction(()=>!$('list-filter').open&&$('threads').contains(document.activeElement));assert.equal(await page.evaluate(()=>workTree.config.text),'item 1');assert.equal(await row(),0);
+  await page.keyboard.type('G');assert.equal(await row(),10);await page.keyboard.type('/');assert.equal(await page.locator('#list-query').inputValue(),'item 1');await page.keyboard.press('Enter');await page.waitForTimeout(30);assert.equal(await row(),10);
+  await page.keyboard.type('/');await page.locator('#list-query').fill('zzzz');await page.keyboard.press('Enter');await page.waitForFunction(()=>document.activeElement.id==='navigator');await page.keyboard.type('ggGj');await press('f',{ctrlKey:true});assert.equal(await page.evaluate(()=>navigatorRows().length),0);
+  await page.keyboard.type('/');await page.locator('#list-query').fill('');await page.keyboard.press('Enter');await page.waitForTimeout(30);
+  await page.evaluate(()=>{workTree.config.mode='tree';workTree.controls();workTree.render();workTree.focus('captain-nav');});
+  await page.keyboard.type('l');assert.equal(await page.locator('#threads [data-id="crew"]').count(),1);await page.keyboard.type('j');assert.equal(await page.evaluate(()=>document.activeElement.dataset.id),'crew');await page.keyboard.type('h');assert.equal(await page.evaluate(()=>document.activeElement.dataset.id),'captain-nav');
+  await page.keyboard.type('h');assert.equal(await page.locator('#threads [data-id="crew"]').count(),0);
+  await page.evaluate(()=>{keyConfig={...keyConfig,mappings:{...keyConfig.mappings,navigatorExpand:['e'],navigatorFirst:['z'],pickerBrowseNext:['x']}};keyBindings=Keymaps.compile(keyConfig,keyMac);renderKeyHints();});
+  await page.keyboard.type('l');assert.equal(await page.locator('#threads [data-id="crew"]').count(),0);await page.keyboard.type('e');assert.equal(await page.locator('#threads [data-id="crew"]').count(),1);await page.keyboard.type('z');assert.equal(await row(),0);assert.match(await page.locator('#active-keys').innerText(),/z first loaded/);
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1100,760));await shot('navigator');
+  assert.ok(await page.evaluate(()=>document.activeElement.getBoundingClientRect().top>=$('navigator').querySelector('.tree-toolbar').getBoundingClientRect().bottom));
+  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(640,600));await shot('navigator-narrow');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1100,760));
+  await page.evaluate(()=>showPicker('threads'));await page.keyboard.type('jk/');assert.equal(await page.locator('#picker-search').inputValue(),'jk/');assert.equal(await page.evaluate(()=>matches.length),0);
+  await page.locator('#picker-search').fill('');await page.keyboard.press('Control+g');assert.equal(await page.evaluate(()=>document.activeElement.id),'picker-list');
+  await page.keyboard.type('gg');assert.equal(await page.evaluate(()=>selected),0);await page.keyboard.type('j');assert.equal(await page.evaluate(()=>selected),0);await press('x',{repeat:true});assert.equal(await page.evaluate(()=>selected),1);
+  await page.keyboard.type('G');assert.equal(await page.evaluate(()=>selected),60);await page.keyboard.type('/');await page.locator('#picker-search').fill('zzzz');await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>selected),60);assert.equal(await page.locator('#picker-search').inputValue(),'');assert.equal(await page.evaluate(()=>document.activeElement.id),'picker-list');
+  await page.keyboard.type('/');await page.locator('#picker-search').fill('item 2');await page.keyboard.press('Control+g');assert.equal(await page.evaluate(()=>matches.length),15);await page.keyboard.type('gg');await page.keyboard.press('Control+d');assert.ok(await page.evaluate(()=>selected>0));assert.match(await page.locator('#mode').innerText(),/PICKER BROWSE/);await shot('picker');
+  await page.keyboard.type('/');const before=await page.locator('#picker-search').inputValue();assert.equal(await press('j',{isComposing:true}),false);assert.equal(await page.locator('#picker-search').inputValue(),before);await page.keyboard.press('Escape');await page.keyboard.press('Escape');await page.waitForFunction(()=>!picker.open);
+  await page.evaluate(()=>showPicker('threads'));await page.keyboard.press('Control+g');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(640,600));await shot('picker-narrow');await page.keyboard.press('Escape');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1100,760));
+  await page.evaluate(()=>showPicker('threads'));await page.keyboard.press('Control+g');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(640,600));
+  await page.evaluate(()=>{$('picker-list').style.minHeight='500px';});
+  const clipped=await page.evaluate(()=>{const host=$('picker-list'),bounds=navigationViewport(host);return {height:bounds.bottom-bounds.top,full:host.clientHeight,expected:Navigation.rowTarget([...host.children].map(row=>row.getBoundingClientRect()),selected,{...bounds,height:bounds.bottom-bounds.top},0.5)};});assert.ok(clipped.height<clipped.full);await page.keyboard.press('Control+d');assert.equal(await page.evaluate(()=>selected),clipped.expected);await page.evaluate(()=>{$('picker-list').style.minHeight='';});await page.keyboard.press('Escape');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(1100,760));
+  await page.locator('#keymaps-button').click();await page.locator('#map-leader').focus();assert.equal(await press('/',{}),false);assert.equal(await press('d',{ctrlKey:true}),false);await page.keyboard.press('Escape');
+  await app.evaluate(({ipcMain})=>{ipcMain.removeHandler('desk:messages');ipcMain.handle('desk:messages',()=>({value:{items:[{id:'nav-body',source:'assistant',text:Array.from({length:100},(_,i)=>'Release line '+i+'.').join('\n\n')}],beforeCursor:'earlier-nav',cursor:'newer-nav'}}));});
+  await page.evaluate(async()=>{messageState=new Transcript.Pager();await loadMessages();$('conversation').focus();chatPosition=0;transcript.scrollTop=0;paintChat();});
+  await page.evaluate(()=>{globalThis.navLoadCalls=[];for(const action of ['LoadOlder','LoadNewer']){const prior=navigationFrames.chat.adapter[action];navigationFrames.chat.adapter[action]=()=>{navLoadCalls.push(action);return prior();};}});
+  await page.keyboard.type(']m');await page.waitForFunction(()=>!messageBusy);await page.keyboard.type('[m');await page.waitForFunction(()=>!messageBusy);assert.deepEqual(await page.evaluate(()=>navLoadCalls),['LoadNewer','LoadOlder']);
+  await page.keyboard.type('gg');const start=await page.evaluate(()=>({height:transcript.clientHeight,scroll:transcript.scrollTop}));await page.keyboard.press('Control+f');assert.ok(await page.evaluate(({height,scroll})=>Math.abs(transcript.scrollTop-scroll-height)<2,start));await page.keyboard.press('Control+b');assert.equal(await page.evaluate(()=>chatPosition),0);
+  await page.keyboard.type('G');assert.match(await page.locator('#status-position').innerText(),/loaded.*earlier available.*newer available/);await page.keyboard.type('/');await page.locator('#chat-query').fill('Release');await page.keyboard.press('Enter');const found=await page.evaluate(()=>chatPosition);await page.keyboard.type('nN');assert.equal(await page.evaluate(()=>chatPosition),found);
+  await page.keyboard.type('/');await page.locator('#chat-query').fill('absent');await page.keyboard.press('Enter');await page.keyboard.press('Escape');assert.equal(await page.evaluate(()=>chatQuery),'Release');assert.equal(await page.evaluate(()=>chatPosition),found);
+  await shot('chat');await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setContentSize(640,600));await shot('chat-narrow');assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=document.documentElement.clientWidth));
+  assert.deepEqual(errors,[]);console.log('PASS shared navigation: bounds/repeats/viewport chunks/sequence timeout+reset/filter cancel+reapply/empty/tree remaps/picker query vs browse/IME/forms/loaded search and boundaries/status/hidden normal+narrow renders');
+ }finally{await app?.close();await fs.rm(profile,{recursive:true,force:true});}
+})().catch(e=>{console.error(e);process.exitCode=1;});
