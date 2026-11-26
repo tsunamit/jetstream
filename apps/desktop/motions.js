@@ -2,14 +2,15 @@
   const segmenter = new Intl.Segmenter(undefined,{granularity:'grapheme'});
   function move(text, position, motion) {
     const p = Math.max(0, Math.min(text.length, position));
+    if (motion === 'Left' || motion === 'Right') {
+      const segments = segmenter.segment(text);
+      if (motion === 'Left') return p ? segments.containing(p - 1).index : 0;
+      const part = segments.containing(p);
+      return part ? part.index + part.segment.length : text.length;
+    }
     const start = p ? text.lastIndexOf('\n', p - 1) + 1 : 0;
     const end = text.indexOf('\n', p);
     const lineEnd = end < 0 ? text.length : end;
-    if (motion === 'Left' || motion === 'Right') {
-      const boundaries = [...segmenter.segment(text)].map(part => part.index);
-      if (motion === 'Left') return boundaries.filter(index => index < p).at(-1) ?? 0;
-      return boundaries.find(index => index > p) ?? text.length;
-    }
     if (motion === 'Start') return start;
     if (motion === 'End') return lineEnd;
     if (motion === 'First') return 0;
