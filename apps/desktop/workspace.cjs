@@ -25,12 +25,16 @@ async function workspace(client) {
   for (const item of captains) threads.delete(item.id);
   return {projects,captains,threads:[...threads.values()],activity:[]};
 }
-function selection(input, projects, models) {
-  if (!input || Object.keys(input).some(k=>!['requestId','projectId','message','model','machineSize'].includes(k))) throw Error('Unsupported creation option. Device discovery is not available in the public API.');
+function selection(input, projects, models, captains=[]) {
+  if (!input || Object.keys(input).some(k=>!['requestId','projectId','message','model','machineSize','captainId'].includes(k))) throw Error('Unsupported creation option. Device discovery is not available in the public API.');
   if (typeof input.requestId !== 'string' || !/^[a-f0-9-]{36}$/.test(input.requestId)) throw Error('Invalid request ID.');
   if (!projects.some(p=>p.id===input.projectId)) throw Error('Project is no longer available.');
   if (typeof input.message !== 'string' || !input.message.trim() || input.message.length>30000) throw Error('Initial prompt must be 1–30000 characters.');
   const body={requestId:input.requestId,projectId:input.projectId,message:input.message.trim()};
+  if(input.captainId){
+    if(!captains.some(c=>c.id===input.captainId&&c.projectId===input.projectId&&!c.archived&&c.status!=='archived'))throw Error('Captain is no longer available in this project.');
+    body.captainId=input.captainId;
+  }
   if (input.machineSize) {
     if (!sizes.includes(input.machineSize)) throw Error('Unsupported cloud size.');
     body.machineSize=input.machineSize;

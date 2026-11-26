@@ -4,8 +4,8 @@ class ProviderError extends Error {
   constructor(code, message) { super(message); this.code = code; }
 }
 const opaque = value => typeof value === 'string' && value.length > 0 && value.length <= 256;
-const methods = ['workspace','projects','threads','messages','send','models','create','metadata','readState','receipt','context','attachment'];
-const required = {send:'send',models:'models',create:'create',receipt:'read',readState:'read',context:'hierarchy',attachment:'attachments'};
+const methods = ['workspace','projects','threads','messages','send','models','creationOptions','create','metadata','readState','receipt','context','attachment'];
+const required = {send:'send',models:'models',creationOptions:'create',create:'create',receipt:'read',readState:'read',context:'hierarchy',attachment:'attachments'};
 
 class ProviderSession {
   constructor() { this.generation = 0; this.adapter = null; }
@@ -23,6 +23,9 @@ class ProviderSession {
     const adapter = this.adapter, generation = this.generation, capability = required[method];
     if (capability && !adapter.capabilities[capability].supported) throw new ProviderError('unsupported',adapter.capabilities[capability].reason);
     if(method==='send' && args[3] && !adapter.capabilities.modelSelection.supported)throw new ProviderError('unsupported',adapter.capabilities.modelSelection.reason);
+    if(method==='create')for(const [field,cap] of [['model','createModel'],['captainId','createCaptain'],['machineSize','createMachineSize']]){
+      if(args[0]?.[field] && !adapter.capabilities[cap]?.supported)throw new ProviderError('unsupported',adapter.capabilities[cap]?.reason || 'This creation option is unavailable.');
+    }
     try {
       const result = await adapter[method](...args);
       if (generation !== this.generation) throw new ProviderError('stale','Provider or account changed.');

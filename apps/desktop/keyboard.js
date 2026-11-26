@@ -108,6 +108,7 @@ function renderKeyHints() {
   $('help').textContent = (mappingLabel('help') ? mappingLabel('help') + ' ' : '') + 'Shortcuts';
   $('edit-reply').title = 'Edit reply' + keyHint('reply');
   $('new-thread-button').title = 'New thread' + keyHint('newThread');
+  $('new-thread-top-button').title = 'New thread' + keyHint('newThread');
   $('chat-select').title = 'Select text' + keyHint('chatVisual');
   $('chat-copy').title = 'Copy selection' + keyHint('chatYank');
   $('active-keys').textContent = ['switchPane','reply','help'].map(id => (mappingLabel(id) || 'unmapped') + ' ' + Keymaps.actions[id][0].toLowerCase()).join(' · ');

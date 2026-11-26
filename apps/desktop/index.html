@@ -44,6 +44,7 @@
   <header class="top">
     <div class="brand"><span aria-hidden="true">▰</span> Jetstream</div>
     <button id="toggle-sidebar" type="button" aria-controls="navigator" aria-expanded="true">Hide sidebar</button>
+    <button id="new-thread-top-button" type="button">New thread</button>
     <div class="actions"><button id="back" disabled>← Back</button><button id="forward" disabled>Forward →</button><button id="find">Jump</button><label>Mode <select id="connection-mode" aria-label="Connection mode"><option value="mock">Mock</option><option value="live">Live</option></select></label><span id="connection-state" class="badge">OFFLINE</span><button id="connect">Connect</button><button id="help">? Shortcuts</button><button id="keymaps-button">Keymaps</button></div>
   </header>
   <main>
@@ -144,19 +145,22 @@
   </dialog>
   <dialog id="new-thread" aria-labelledby="new-thread-title">
     <header><h2 id="new-thread-title">New thread</h2><button id="new-close">Close</button></header>
-    <p id="new-note">Explicit submit starts a real agent. No thread is created while choosing options.</p>
+    <p id="new-note">Only Create thread starts an agent. The title is generated from your prompt.</p>
     <form id="new-thread-form">
-      <label>Initial prompt<textarea id="new-prompt" required maxlength="30000" rows="5"></textarea></label>
+      <label>Initial prompt<textarea id="new-prompt" required maxlength="30000" rows="3" placeholder="What should the agent work on?"></textarea></label>
       <label>Project<select id="new-project" required></select></label>
+      <label id="new-captain-field">Captain<select id="new-captain"><option value="">None · standalone thread</option></select></label>
+      <label id="new-model-field">Model<select id="new-model"><option value="">Account default</option></select></label>
+      <label id="new-reasoning-field">Reasoning strength<select id="new-reasoning"><option value="">Model default</option></select></label>
+      <div id="new-modes"></div>
+      <details id="new-cloud"><summary>Cloud settings</summary>
       <label>Machine<select id="new-machine"><option value="cloud">Cloud</option><option disabled>Paired device — discovery unavailable</option><option disabled>This Mac / current checkout — no public discovery API</option></select></label>
-      <p class="muted">The API accepts explicit device IDs/workspaces but cannot list or validate paired devices. Local placement is unavailable here; nothing runs in this folder.</p>
       <label>Cloud size<select id="new-size"><option value="">Project default</option><option>small</option><option>medium</option><option>large</option><option>ultra</option><option>hyper</option><option>bigguy</option></select></label>
-      <p class="muted">Cloud machine time and model usage may be billed. Plan/size eligibility is checked by the server; no cost estimate is available from this catalog.</p>
-      <label>Model<select id="new-model"><option value="">Account default (server resolves availability)</option></select></label>
-      <label>Reasoning strength<select id="new-reasoning"><option value="">Model default</option></select></label>
-      <div id="new-modes"></div><p class="muted">Daybreak is not advertised by the model catalog and is unavailable here.</p>
+      <p class="muted">Device discovery is unavailable. Creation uses the cloud, not this folder.</p>
+      </details>
+      <p class="muted">Model usage and cloud time may be billed. Captain assignment uses that Captain’s access rules.</p>
       <p id="new-summary"></p><p id="new-error" role="status" aria-live="polite"></p>
-      <button id="new-reload" type="button">Refresh availability</button><button id="new-submit" type="submit" disabled>Create thread</button>
+      <div class="new-thread-footer"><button id="new-reload" type="button">Refresh availability</button><button id="new-submit" type="submit" disabled>Create thread</button></div>
     </form>
   </dialog>
 </body>

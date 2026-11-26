@@ -10,6 +10,7 @@ methods.push('dev');
 methods.push('conversationMetadata');
 methods.push('userConfig','reloadConfig','saveConfig','openConfig','migrateToolActivity');
 methods.push('providerInfo');
+methods.push('creationOptions');
 let providerContext;
 const invoke = name => async (...args) => {
   const result = await ipcRenderer.invoke('desk:' + name, ...args);
@@ -18,7 +19,7 @@ const invoke = name => async (...args) => {
   if(name==='providerInfo'&&!providerContext)providerContext=result.value;
   return result.value;
 };
-const providerMethods = {info:'providerInfo',workspace:'workspace',workspaceSettings:'workspaceConfig',saveWorkspaceSettings:'saveWorkspaceConfig',projects:'projects',conversations:'threads',content:'messages',send:'send',models:'models',createConversation:'createThread',metadata:'conversationMetadata',readState:'threadReadState',markRead:'threadReceipt',reference:'referenceContext',activity:'activity',stream:'stream',ack:'streamAck',cancelContent:'cancelMessages'};
+const providerMethods = {info:'providerInfo',workspace:'workspace',workspaceSettings:'workspaceConfig',saveWorkspaceSettings:'saveWorkspaceConfig',projects:'projects',conversations:'threads',content:'messages',send:'send',models:'models',creationOptions:'creationOptions',createConversation:'createThread',metadata:'conversationMetadata',readState:'threadReadState',markRead:'threadReceipt',reference:'referenceContext',activity:'activity',stream:'stream',ack:'streamAck',cancelContent:'cancelMessages'};
 const onStream = callback => {
   if (typeof callback !== 'function') throw Error('Invalid stream listener.');
   const listener = (_event, batch) => callback(batch);

@@ -8,6 +8,9 @@ const capabilities = demo => ({
   send:supported, stream:supported, read:supported, hierarchy:supported, attachments:supported,
   models:demo ? unavailable('Use Connect live to load models. Demo choices stay offline.') : supported,
   create:demo ? unavailable('Demo mode never creates threads.') : supported,
+  createModel:demo ? unavailable('Connect live to choose a creation model.') : supported,
+  createCaptain:demo ? unavailable('Connect live to assign a Captain.') : supported,
+  createMachineSize:demo ? unavailable('Connect live to choose a cloud size.') : supported,
   activityHistory:demo ? supported : unavailable('Historical activity is not available through this adapter.'),
   runtime:unavailable('The Capy public API does not expose the execution host or machine moves.'),
   modelState:{supported:true,semantics:'last-reported'},
@@ -32,9 +35,13 @@ function capyProvider({key, mock, fixture, signal, transcriptSignal, emit, demoF
       const value=await client().models();
       return {items:value.items.map(Shape.model),default:{modelId:value.default?.modelId??null}};
     },
+    creationOptions:async () => {
+      const current=client(), [projects,models,captains]=await Promise.all([current.projects(),current.models(),Workspace.pages(cursor=>current.captains(cursor))]);
+      return {projects:projects.items.map(Shape.project),models:models.items.map(Shape.model),default:{modelId:models.default?.modelId??null},captains:captains.filter(c=>!c.archived&&c.status!=='archived'&&projects.items.some(p=>p.id===c.projectId)).map(c=>({id:c.id,projectId:c.projectId,name:c.name||c.title||c.id}))};
+    },
     create:async input => {
-      const current=client(), [projects,models]=await Promise.all([current.projects(),current.models()]);
-      return Shape.conversation(await current.create(Workspace.selection(input,projects.items,models.items)));
+      const current=client(), [projects,models,captains]=await Promise.all([current.projects(),current.models(),input?.captainId?Workspace.pages(cursor=>current.captains(cursor)):Promise.resolve([])]);
+      return Shape.conversation(await current.create(Workspace.selection(input,projects.items,models.items,captains)));
     },
     send:async (...args) => {
       if(!identifier(args[0]))throw Error('Invalid conversation ID.');
