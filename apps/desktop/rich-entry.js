@@ -87,20 +87,7 @@ async function render(item, threadId, scope = () => true) {
     a.removeAttribute('data-ref');
     if(target)referenceNavigation.bind(a,target);
   }
-  const rows=referenceNavigation.rows();
-  const codes=new Set(rows.map(row=>row.code).filter(code=>typeof code==='string'));
-  if(codes.size) {
-    const walker=document.createTreeWalker(root,NodeFilter.SHOW_TEXT);
-    const textNodes=[];while(walker.nextNode())textNodes.push(walker.currentNode);
-    for(const node of textNodes) {
-      if(node.parentElement.closest('a,pre,code'))continue;
-      const matches=[...node.textContent.matchAll(/\b[A-Z][A-Z0-9]*-[A-Z0-9]+\b/g)].filter(match=>codes.has(match[0]));
-      if(!matches.length)continue;
-      const fragment=document.createDocumentFragment();let start=0;
-      for(const match of matches){fragment.append(document.createTextNode(node.textContent.slice(start,match.index)));const link=document.createElement('a');link.textContent=match[0];referenceNavigation.bind(link,{kind:'code',id:match[0],label:match[0]});fragment.append(link);start=match.index+match[0].length;}
-      fragment.append(document.createTextNode(node.textContent.slice(start)));node.replaceWith(fragment);
-    }
-  }
+  ReferenceTargets.decorate(root,referenceNavigation.codes(),referenceNavigation.bind);
   const files = (Array.isArray(item.attachments) ? item.attachments : []).filter(a => a?.file?.fileId);
   const used = new Set();
   const media = async (file, title, snapshot = false) => {
