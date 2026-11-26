@@ -32,7 +32,7 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     await page.evaluate(()=>openThread(workTree.state.data.threads.find(t=>t.id==='a'),{focus:'conversation'}));
     await page.waitForFunction(()=>!messageBusy&&!conversationControls.loading);
     assert.match(await page.locator('#conversation-last-model').innerText(),/model-old/);
-    assert.match(await page.locator('#conversation-runtime').innerText(),/unknown.*not exposed/);
+    assert.match(await page.locator('#conversation-runtime').innerText(),/Agent host: unknown.*API/);
     await page.evaluate(()=>{draft.value='Preserved draft';updateSend();});
     const beforePosts=await app.evaluate(()=>posts.length);
     await page.locator('#conversation-model').click();await page.waitForFunction(()=>!$('model-apply').disabled);
@@ -92,6 +92,12 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     await page.waitForFunction(()=>!conversationControls.loading&&!$('conversation-settings').open&&!messageBusy);
     assert.equal(await page.evaluate(()=>conversationControls.choices.size),0,'Stale catalog never saves a choice into the new context');
     await page.evaluate(()=>openThread(workTree.state.data.threads.find(t=>t.id==='b'),{focus:'conversation'}));
+    await app.evaluate(()=>{holdModels=true;});
+    await page.evaluate(()=>{void conversationControls.open();$('conversation-settings').close();void conversationControls.open();$('conversation-settings').dispatchEvent(new Event('close'));});
+    await app.evaluate(async()=>{for(let i=0;i<100&&modelWait.length<2;i++)await new Promise(r=>setTimeout(r,20));if(modelWait.length<2)throw Error('Missing reopened model requests');holdModels=false;for(const resolve of modelWait)resolve();modelWait=[];});
+    await page.waitForFunction(()=>$('conversation-settings').open&&!$('model-apply').disabled);
+    await page.evaluate(()=>{$('conversation-settings').close();$('conversation').focus();$('conversation-settings').dispatchEvent(new Event('close'));});
+    assert.equal(await page.evaluate(()=>document.activeElement.id),'conversation','Queued close must not steal newly chosen chat focus');
     await page.evaluate(()=>{draft.value='Insert owns typing';insertDraft();});
     await page.keyboard.type(' tm');assert.equal(await page.locator('#conversation-settings').evaluate(n=>n.open),false);
     await page.evaluate(()=>normalDraft());await page.keyboard.type(' tm');await page.locator('#conversation-settings[open]').waitFor();
@@ -103,12 +109,19 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     }
     await page.locator('#model-apply').click();
     if(process.argv[2])await shot('model-runtime.png');
-    await page.setViewportSize({width:640,height:600});
+    await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(640,600));
+    await page.waitForFunction(()=>innerWidth===640&&transcript.clientHeight>=200);
+    await page.evaluate(()=>{globalThis.savedModelFixture={choice:conversationControls.choices.get(thread.id),metadata:conversationControls.metadata};conversationControls.choices.set(thread.id,{modelId:'fixture/claude-sonnet-long-name'});conversationControls.metadata={id:thread.id,lastModelId:'fixture/claude-sonnet-long-name'};conversationControls.render();});
+    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
+    assert.ok(await page.evaluate(()=>transcript.clientHeight>=200),'Native minimum retains transcript with long model IDs');
+    assert.ok(await page.evaluate(()=>{const h=document.querySelector('.thread-head').getBoundingClientRect();return ['conversation-model','conversation-last-model','conversation-runtime'].every(id=>{const r=$(id).getBoundingClientRect();return r.top>=h.top&&r.bottom<=h.bottom;});}),'Model and runtime states remain inside the compact header');
+    if(process.argv[2])await shot('model-runtime-native-minimum.png');
+    await page.evaluate(()=>{conversationControls.choices.set(thread.id,savedModelFixture.choice);conversationControls.metadata=savedModelFixture.metadata;conversationControls.render();});
     const geometry=await page.locator('#conversation-model').boundingBox();assert.ok(geometry.x>=0&&geometry.x+geometry.width<=640);
     await page.locator('#conversation-model').click();await page.waitForFunction(()=>!$('model-apply').disabled);
     const applyBox=await page.locator('#model-apply').boundingBox();assert.ok(applyBox.y>=0&&applyBox.y+applyBox.height<=600);
     if(process.argv[2])await shot('model-controls-narrow.png');await page.locator('#model-close').click();
-    await page.setViewportSize({width:1140,height:728});
+    await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(1140,760));
     const postCount=await app.evaluate(()=>posts.length);await app.evaluate(()=>{catalog=catalog.filter(m=>m.id!=='model-a');});
     await page.evaluate(()=>{draft.value='Stale catalog draft';updateSend();$('composer').requestSubmit($('send'));});
     await page.waitForFunction(()=>!pending&&document.querySelector('[data-outgoing="failed"] button'));

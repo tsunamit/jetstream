@@ -9,7 +9,7 @@
     if(value.modes!==undefined&&(!value.modes||typeof value.modes!=='object'||Array.isArray(value.modes)||Object.entries(value.modes).some(([k,v])=>!['fast','pro','ultrafast'].includes(k)||typeof v!=='boolean'||!model[k])))throw Error('Selected mode is unavailable for this model.');
     return {modelId:model.id,...(value.reasoningMode?{reasoningMode:value.reasoningMode}:{}),...(value.modes?{modes:{...value.modes}}:{})};
   }
-  function runtime(){return 'Agent runtime: unknown · host not exposed by API';}
+  function runtime(){return 'Agent host: unknown (API)';}
   const api={selection,runtime};
   if(typeof module==='object')module.exports=api;else root.ConversationSettings=api;
 })(globalThis);

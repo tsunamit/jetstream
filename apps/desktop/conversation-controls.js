@@ -16,10 +16,10 @@ const conversationControls={
   render(){
     const choice=this.choices.get(thread?.id),last=this.metadata?.lastModelId;
     $('conversation-model').disabled=!thread;
-    $('conversation-model').textContent=choice?'Next message: '+choice.modelId+' · Change':'Next message model · Choose';
-    $('conversation-last-model').textContent=!thread?'Model: no conversation selected':this.loading?'Last model: loading…':last?'Last-reported model: '+last:'Last model: unknown'+(this.error?' · metadata unavailable':'');
+    $('conversation-model').textContent=choice?'Next message: '+choice.modelId:'Next message model · Choose';
+    $('conversation-last-model').textContent=!thread?'Model: no conversation selected':this.loading?'Last model: loading…':last?'Last-reported: '+last:'Last model: unknown'+(this.error?' · metadata unavailable':'');
     $('conversation-model').title=(this.error?this.error+'. ':'')+'Last-reported ID only; current reasoning and modes are not exposed. Choose model for your next message.'+(typeof keyHint==='function'?keyHint('conversationModel'):'');
-    $('conversation-runtime').textContent=thread?(this.loading?'Agent runtime: loading metadata…':ConversationSettings.runtime()):'Agent runtime: no conversation selected';
+    $('conversation-runtime').textContent=thread?(this.loading?'Agent host: loading…':ConversationSettings.runtime()):'Agent host: no conversation selected';
     $('conversation-runtime').title='This is the selected conversation, not the desktop client or its subagents. The public API provides no execution host or machine-move endpoint. Use the Capy thread to inspect or move its workspace.';
   },
   async open(){
@@ -79,4 +79,4 @@ $('model-close').onclick=()=>$('conversation-settings').close();
 $('model-reload').onclick=()=>conversationControls.reload();
 $('reply-model').onchange=()=>conversationControls.model();
 $('conversation-settings-form').onsubmit=event=>{event.preventDefault();if(event.submitter===$('model-apply'))conversationControls.apply();};
-$('conversation-settings').onclose=()=>{++conversationControls.catalogRequest;if(conversationControls.target===thread?.id&&conversationControls.origin?.isConnected&&!document.querySelector('dialog[open]'))conversationControls.origin.focus();};
+$('conversation-settings').onclose=()=>{if($('conversation-settings').open)return;++conversationControls.catalogRequest;if(conversationControls.target===thread?.id&&conversationControls.origin?.isConnected&&!document.querySelector('dialog[open]')&&(document.activeElement===document.body||$('conversation-settings').contains(document.activeElement)))conversationControls.origin.focus();};

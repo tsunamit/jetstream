@@ -11,7 +11,7 @@ test('catalog constrains selection and returns an immutable send snapshot',()=>{
   assert.deepEqual(selection({modelId:'m2',modes:{pro:true}},models),{modelId:'m2',modes:{pro:true}});
 });
 test('undocumented host-looking metadata never becomes an execution claim',()=>{
-  for(const fake of [{machine:'cloud'},{device:{name:'Mac'}},{machineId:'machine_1'},null])assert.match(runtime(fake),/unknown.*not exposed/);
+  for(const fake of [{machine:'cloud'},{device:{name:'Mac'}},{machineId:'machine_1'},null])assert.match(runtime(fake),/Agent host: unknown.*API/);
 });
 test('model changes only travel with an explicit queued message',async()=>{
   const calls=[];const client=api('fixture',async(url,init)=>{calls.push([url.pathname,JSON.parse(init.body)]);return Response.json({});});
