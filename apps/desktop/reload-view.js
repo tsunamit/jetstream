@@ -28,19 +28,24 @@ const devReload = {
     }
     catch(error){document.body.inert=false;this.output.textContent=error.message;this.busy=false;}
   },
-  async style(version) {
-    this.styleVersion=version;
-    const old=document.querySelector('link[rel="stylesheet"][href^="style.css"]');
-    if(!old)return;
-    const selection=getSelection(),ranges=selection ? Array.from({length:selection.rangeCount},(_,i)=>selection.getRangeAt(i).cloneRange()) : [];
-    const scroll=transcript.scrollTop,editorScroll=composer.view?.scrollDOM.scrollTop;
-    const next=old.cloneNode();next.href='style.css?dev='+version;
-    await new Promise((resolve,reject)=>{next.onload=resolve;next.onerror=reject;old.after(next);}).catch(()=>{next.remove();throw Error('CSS update failed; the previous stylesheet is still active.');});
-    if(this.styleVersion!==version){next.remove();return;}
-    old.remove();
-    if(selection&&ranges.length){selection.removeAllRanges();for(const range of ranges)selection.addRange(range);}
-    transcript.scrollTop=scroll;if(composer.view)composer.view.scrollDOM.scrollTop=editorScroll;
-    composer.measure();this.output.textContent='Dev · CSS updated without renderer reload';
+  style(version, changes) {
+    this.styleQueue=(this.styleQueue||Promise.resolve()).catch(()=>{}).then(async()=>{
+      const names=new Set((Array.isArray(changes)?changes:[]).filter(name=>typeof name==='string'&&/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.css$/.test(name)).slice(0,32));
+      const links=[...document.querySelectorAll('link[rel="stylesheet"]')].filter(link=>names.has((link.getAttribute('href')||'').split(/[?#]/)[0].replace(/^\.\//,''))).slice(0,32);
+      if(!links.length)return;
+      const selection=getSelection(),ranges=selection ? Array.from({length:selection.rangeCount},(_,i)=>selection.getRangeAt(i).cloneRange()) : [];
+      const scroll=transcript.scrollTop,editorScroll=composer.view?.scrollDOM.scrollTop;
+      await Promise.all(links.map(async old=>{
+        const name=old.getAttribute('href').split(/[?#]/)[0];
+        const next=old.cloneNode();next.href=name+'?dev='+encodeURIComponent(version);
+        await new Promise((resolve,reject)=>{next.onload=resolve;next.onerror=reject;old.after(next);}).catch(()=>{next.remove();throw Error('CSS update failed; the previous stylesheet is still active.');});
+        old.remove();
+      }));
+      if(selection&&ranges.length){selection.removeAllRanges();for(const range of ranges)selection.addRange(range);}
+      transcript.scrollTop=scroll;if(composer.view)composer.view.scrollDOM.scrollTop=editorScroll;
+      composer.measure();this.output.textContent='Dev · CSS updated without renderer reload';
+    });
+    return this.styleQueue;
   },
   setup(notice) {
     if(this.enabled)return;this.enabled=true;
@@ -53,7 +58,7 @@ const devReload = {
     box.append(this.output,document.createTextNode(' '),this.button);document.body.append(box);
     desk.onDev(event=>{
       if(event.type==='reload'){this.reload();return;}
-      if(event.type==='style')this.style(event.version).catch(error=>{this.output.textContent=error.message;});
+      if(event.type==='style')this.style(event.version,event.changes).catch(error=>{this.output.textContent=error.message;});
       else this.output.textContent=event.notice;
     });
     const resume=event=>{

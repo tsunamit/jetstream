@@ -4,7 +4,7 @@ const path = require('node:path');
 const mainFiles = new Set(['main.cjs', 'preload.cjs', 'connection.cjs', 'api.cjs', 'media.cjs', 'workspace.cjs', 'stream.cjs', 'zoom.cjs', 'layout.cjs', 'demo.cjs', 'stream-demo.cjs', 'keymaps.js', 'sidebar-state.js', 'layout-state.js', 'dev-runtime.cjs', 'dev-watch.cjs', 'dev-build.cjs', 'dev-launch.cjs']);
 function classify(name) {
   if (typeof name !== 'string' || path.basename(name) !== name) return null;
-  if (name === 'style.css') return 'style';
+  if (/^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.css$/.test(name)) return 'style';
   if (mainFiles.has(name) || name === 'package.json' || name === 'build.cjs') return 'restart';
   if (name.startsWith('dev-') || /(\.bundle\.js|\.test\.cjs|-smoke\.cjs|^smoke\.cjs|^test-support\.cjs|^hidden-proof\.cjs)$/.test(name)) return null;
   if (name === 'index.html' || /\.(js|cjs)$/.test(name)) return 'renderer';
