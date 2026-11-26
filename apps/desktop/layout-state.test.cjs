@@ -6,6 +6,21 @@ const path=require('node:path');
 const Layout=require('./layout-state.js');
 const {LayoutSettings}=require('./layout.cjs');
 const Tree=require('./sidebar-state.js');
+test('shared gutters are modest, continuous, pane-width based and disabled on narrow panes',()=>{
+  for(const width of [300,500,800])assert.equal(Layout.gutter(width,true),Layout.gutter(width,false));
+  assert.ok(Layout.gutter(1400,true)<=80);assert.ok(1400-2*Layout.gutter(1400,true)>1200);
+  for(let width=300;width<2400;width++)assert.ok(Math.abs(Layout.gutter(width+1,true)-Layout.gutter(width,true))<=.08);
+  assert.equal(Layout.gutter(2400,true),80);assert.equal(Layout.gutter(2400,false),24);
+});
+test('reply growth is transient above the preferred baseline with a viewport cap',()=>{
+  const b=Layout.bounds(1140,700);
+  assert.equal(Layout.replySize(128,80,700,b).height,128);
+  assert.equal(Layout.replySize(128,250,700,b).height,250);
+  assert.equal(Layout.replySize(128,10000,700,b).height,315);
+  assert.equal(Layout.replySize(400,10000,700,b).height,400);
+  assert.equal(Layout.replySize(128,10000,700,b,true).height,128);
+  assert.equal(Layout.replySize(128,80,700,b).height,128);
+});
 test('layout accepts only bounded numbers and a default-on reading preference',()=>{
   assert.equal(Layout.config({version:1,sidebarWidth:280,replyHeight:180}).centeredReading,true);
   for(const value of [null,[],{sidebarWidth:NaN},{sidebarWidth:Infinity},{sidebarWidth:94},{sidebarWidth:641},{replyHeight:71},{replyHeight:1201},{replyHeight:1.5},{centeredReading:1},{version:2},{apiKey:'no'}])assert.throws(()=>Layout.config(value));

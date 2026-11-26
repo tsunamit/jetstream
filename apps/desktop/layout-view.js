@@ -1,17 +1,29 @@
 const layoutView={
-  config:LayoutState.defaults(),ready:false,frame:null,saveTimer:null,drag:null,limits:null,restore:null,
+  config:LayoutState.defaults(),ready:false,frame:null,saveTimer:null,drag:null,limits:null,restore:null,naturalHeight:0,
   apply(restore=this.ready?captureReadingLayout():()=>{}){
     const main=document.querySelector('main'),b=LayoutState.bounds(main.clientWidth,main.clientHeight);
     this.limits=b;
-    const side=LayoutState.clamp(this.config.sidebarWidth,b.sidebarMin,b.sidebarMax),reply=LayoutState.clamp(this.config.replyHeight,b.replyMin,b.replyMax);
+    const side=LayoutState.clamp(this.config.sidebarWidth,b.sidebarMin,b.sidebarMax),size=LayoutState.replySize(this.config.replyHeight,this.naturalHeight,main.clientHeight,b,this.drag?.key==='replyHeight'),reply=size.height;
     document.body.dataset.layout='true';document.body.dataset.centeredReading=String(this.config.centeredReading);
     main.style.setProperty('--sidebar-width',side+'px');main.style.setProperty('--reply-height',reply+'px');
+    const width=main.clientWidth-(document.body.classList.contains('sidebar-hidden')?0:side+6);
+    main.style.setProperty('--content-gutter',LayoutState.gutter(width,this.config.centeredReading)+'px');
+    main.style.setProperty('--transcript-scrollbar',Math.max(0,transcript.offsetWidth-transcript.clientWidth)+'px');
     main.style.setProperty('--chat-head-max',Math.max(24,main.clientHeight-reply-46)+'px');
-    for(const [id,value,min,max] of [['sidebar-resize',side,b.sidebarMin,b.sidebarMax],['reply-resize',reply,b.replyMin,b.replyMax]]){
+    for(const [id,value,min,max] of [['sidebar-resize',side,b.sidebarMin,b.sidebarMax],['reply-resize',reply,size.min,b.replyMax]]){
       const handle=$(id);handle.setAttribute('aria-valuemin',min);handle.setAttribute('aria-valuemax',max);handle.setAttribute('aria-valuenow',value);handle.setAttribute('aria-valuetext',value+' pixels');
     }
     $('centered-reading').checked=this.config.centeredReading;
-    composer.measure();restore();this.restore=captureReadingLayout(false);
+    composer.measure(true);restore();this.restore=captureReadingLayout(false);
+  },
+  geometry(event){
+    if(!this.ready||event.detail.id!==composer.id)return;
+    const chrome=$('composer').clientHeight-draft.clientHeight;
+    this.naturalHeight=Math.ceil(event.detail.height+chrome);
+    const main=document.querySelector('main'),size=LayoutState.replySize(this.config.replyHeight,this.naturalHeight,main.clientHeight,this.limits,this.drag?.key==='replyHeight');
+    if($('reply-resize').getAttribute('aria-valuemin')!==String(size.min))$('reply-resize').setAttribute('aria-valuemin',size.min);
+    if(size.height===Math.round($('composer').getBoundingClientRect().height)||this.frame!==null)return;
+    this.frame=requestAnimationFrame(()=>{this.frame=null;this.apply(this.restore||(()=>{}));});
   },
   schedule(){if(this.frame!==null)return;this.frame=requestAnimationFrame(()=>{this.frame=null;this.apply();});},
   async save(){
@@ -53,11 +65,13 @@ const layoutView={
     if(event.key==='Escape'&&this.drag){event.preventDefault();this.finish(true);return;}
     if(event.altKey||event.metaKey||event.ctrlKey)return;
     const vertical=event.target.id==='sidebar-resize',key=vertical?'sidebarWidth':'replyHeight',b=this.limits;
-    const min=vertical?b.sidebarMin:b.replyMin,max=vertical?b.sidebarMax:b.replyMax,value=Number(event.target.getAttribute('aria-valuenow')),step=event.shiftKey?40:10;
+    const min=Number(event.target.getAttribute('aria-valuemin')),max=vertical?b.sidebarMax:b.replyMax,value=Number(event.target.getAttribute('aria-valuenow')),step=event.shiftKey?40:10;
     const delta=vertical?{ArrowLeft:-step,ArrowRight:step}:{ArrowUp:step,ArrowDown:-step};
     if(!Object.hasOwn(delta,event.key)&&!['Home','End'].includes(event.key))return;
     event.preventDefault();event.stopPropagation();
-    this.config[key]=event.key==='Home'?min:event.key==='End'?max:LayoutState.clamp(value+delta[event.key],min,max);
+    const next=event.key==='Home'?(vertical?b.sidebarMin:b.replyMin):event.key==='End'?max:LayoutState.clamp(value+delta[event.key],min,max);
+    if(Object.hasOwn(delta,event.key)&&next===value)return;
+    this.config[key]=next;
     this.apply();this.debounce();keyboardMode();
   }
 };
@@ -70,6 +84,8 @@ for(const [id,key] of [['sidebar-resize','sidebarWidth'],['reply-resize','replyH
   handle.ondblclick=()=>layoutView.reset(key);
 }
 $('reset-layout').onclick=()=>layoutView.reset();
+draft.addEventListener('geometry',event=>layoutView.geometry(event));
+draft.addEventListener('compositionend',()=>composer.measure(true));
 $('centered-reading').onchange=()=>{layoutView.config.centeredReading=$('centered-reading').checked;layoutView.apply();layoutView.save();};
 new ResizeObserver(()=>{
   if(!layoutView.ready)return;

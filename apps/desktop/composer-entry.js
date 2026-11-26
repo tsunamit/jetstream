@@ -27,7 +27,15 @@ class Controller {
     host.addEventListener('click',event => {if (event.target === host) this.view?.focus();});
   }
   get view() {return this.views.get(this.id)?.view;}
-  measure() {this.view?.requestMeasure();}
+  measure(reveal=false) {
+    const view=this.view;if(!view)return;
+    view.requestMeasure({key:this,read:()=>({height:view.contentHeight+view.dom.clientHeight-view.scrollDOM.clientHeight,caret:reveal&&this.focused()&&!view.composing?view.coordsAtPos(view.state.selection.main.head):null,bounds:view.scrollDOM.getBoundingClientRect()}),write:geometry=>{
+      if(this.view!==view||!view.dom.isConnected)return;
+      const {caret,bounds}=geometry;
+      if(caret){if(caret.bottom>bounds.bottom-4)view.scrollDOM.scrollTop+=caret.bottom-bounds.bottom+4;else if(caret.top<bounds.top+4)view.scrollDOM.scrollTop+=caret.top-bounds.top-4;}
+      this.host.dispatchEvent(new CustomEvent('geometry',{detail:{height:geometry.height,id:this.id}}));
+    }});
+  }
   state() {return this.view && getCM(this.view)?.state.vim;}
   mode() {const s=this.state(); return s?.insertMode ? 'insert' : s?.visualMode ? s.visualBlock ? 'visual block' : s.visualLine ? 'visual line' : 'visual' : 'normal';}
   focused() {return this.host.contains(document.activeElement);}
@@ -51,6 +59,7 @@ class Controller {
         EditorView.updateListener.of(update => {
           if (update.docChanged) this.changed?.(key,update.state.doc.toString());
           if (this.id===key) {this.host.dispatchEvent(new Event('select')); if(update.docChanged) this.host.dispatchEvent(new Event('input',{bubbles:true}));}
+          if(this.id===key&&(update.docChanged||update.geometryChanged))this.measure();
         }),
         EditorView.theme({
           '&':{fontSize:'15px',backgroundColor:'#292c2f',color:'#e6ebe7',borderRadius:'16px'},
@@ -69,7 +78,7 @@ class Controller {
       });
       Vim.handleKey(getCM(view),'i','api');
     }
-    this.host.replaceChildren(this.view.dom); this.setDisabled(this.disabled); this.host.dispatchEvent(new Event('select'));
+    this.host.replaceChildren(this.view.dom); this.setDisabled(this.disabled); this.host.dispatchEvent(new Event('select'));this.measure();
   }
   setDisabled(value) {this.disabled=Boolean(value); const r=this.views.get(this.id); if(r) r.view.dispatch({effects:r.editable.reconfigure(EditorView.editable.of(!this.disabled))});}
   setText(text) {if (this.view && text.length<=30000) this.view.dispatch({changes:{from:0,to:this.view.state.doc.length,insert:text},annotations:[Transaction.addToHistory.of(false),isolateHistory.of('full')]});}

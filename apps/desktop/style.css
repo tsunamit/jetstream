@@ -148,9 +148,10 @@ body.resizing,body.resizing *{user-select:none!important;cursor:var(--resize-cur
 #layout-settings button{font-size:12px}
 #layout-status{font-size:11px;margin-left:8px;color:var(--muted)}
 #transcript{container-type:inline-size;overflow-anchor:none}
-@container (min-width:1000px){
- body[data-centered-reading="true"] #entries>article>header,body[data-centered-reading="true"] #entries>article>.markdown{max-width:900px;margin-left:auto;margin-right:auto;width:100%}
-}
+body[data-layout] .thread-head,body[data-layout] #composer{padding-left:var(--content-gutter,24px);padding-right:calc(var(--content-gutter,24px) + var(--transcript-scrollbar,0px))}
+body[data-layout] #transcript{padding-left:0;padding-right:0}
+body[data-layout] #entries>article{padding-left:var(--content-gutter,24px);padding-right:var(--content-gutter,24px)}
+body[data-layout] #transcript>:not(#entries){margin-left:var(--content-gutter,24px);margin-right:var(--content-gutter,24px)}
 .tree-row .tree-type{color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.06em}
 #threads[role="tree"] .tree-row{position:relative;border-radius:0;padding-top:7px;padding-bottom:7px}
 #threads[role="tree"] .tree-row[aria-level="2"]::before,#threads[role="tree"] .tree-row[aria-level="3"]::before{content:"";position:absolute;left:calc(var(--tree-depth)*28px - 6px);top:0;bottom:0;border-left:1px solid #43504a}
