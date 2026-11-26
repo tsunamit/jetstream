@@ -116,6 +116,7 @@ desk.onStream(batch=>{
   if (batch.token!==liveStream.token || batch.id!==liveStream.id || document.hidden || changingConnection) return;
   let changed=false;
   for (const frame of batch.events) {
+    workActivity.observed(batch.id,frame);
     if(frame.event==='transcript')liveStream.needsCommit=true;
     if(frame.event==='transcript' && typeof readState!=='undefined')readState.committed(batch.id,frame);
     if (frame.event==='connection') {

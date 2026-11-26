@@ -69,6 +69,7 @@ const outgoing = {
       const receipt=await desk.send(entry.threadId,entry.text,entry.clientKey);
       if(!receipt||typeof receipt.id!=='string'||!/^[A-Za-z0-9]{26}$/.test(receipt.id)||typeof receipt.deduped!=='boolean')throw Error('Invalid send receipt. Delivery is uncertain; retry uses the same message ID.');
       entry.receiptId=receipt.id;entry.state='accepted';
+      workActivity.accepted(entry.threadId);
       if(composer.clearSent(entry.threadId,entry.sentDoc))drafts.delete(entry.threadId);
       if(thread?.id===entry.threadId){say(demoMode?'Saved in this demo session.':'Accepted for queue delivery. This does not mean the agent has started.');if(liveStream.state==='complete')liveStream.select(thread);if(!messageBusy)loadMessages().catch(fail);}
     } catch(error) {entry.state='failed';entry.error=error.message;if(thread?.id===entry.threadId)fail(error);}

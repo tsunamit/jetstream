@@ -7,6 +7,7 @@ const compactShell=matchMedia('(max-width:720px)');
 function compactChatActions() { $('chat-actions').open=!compactShell.matches; }
 compactShell.addEventListener('change',compactChatActions);compactChatActions();
 const keyHandlers = {
+  workActivity:()=>workActivity.open(),
   chatReference:openCurrentReference,
   resetLayout:()=>layoutView.reset(),
   toggleSidebar:()=>toggleSidebar(),
