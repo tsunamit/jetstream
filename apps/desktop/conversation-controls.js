@@ -5,7 +5,7 @@ const conversationControls={
     this.metadata=null;this.error='';this.loading=Boolean(item);this.render();
     if($('conversation-settings').open)$('conversation-settings').close();
     if(!item)return;
-    desk.conversationMetadata(item.id).then(value=>{
+    client.metadata(item.id).then(value=>{
       if(revision!==this.revision)return;
       this.metadata=value;this.loading=false;this.render();
     }).catch(()=>{
@@ -15,14 +15,15 @@ const conversationControls={
   },
   render(){
     const choice=this.choices.get(thread?.id),last=this.metadata?.lastModelId;
-    $('conversation-model').disabled=!thread;
+    $('conversation-model').disabled=!thread||!capability('modelSelection').supported;
     $('conversation-model').textContent=choice?'Next message: '+choice.modelId:'Next message model · Choose';
     $('conversation-last-model').textContent=!thread?'Model: no conversation selected':this.loading?'Last model: loading…':last?'Last-reported: '+last:'Last model: unknown'+(this.error?' · metadata unavailable':'');
-    $('conversation-model').title=(this.error?this.error+'. ':'')+'Last-reported ID only; current reasoning and modes are not exposed. Choose model for your next message.'+(typeof keyHint==='function'?keyHint('conversationModel'):'');
+    $('conversation-model').title=(!capability('modelSelection').supported?capability('modelSelection').reason+'. ':'')+(this.error?this.error+'. ':'')+'Last-reported ID only; current reasoning and modes are not exposed. Choose model for your next message.'+(typeof keyHint==='function'?keyHint('conversationModel'):'');
     $('conversation-runtime').textContent=thread?(this.loading?'Agent host: loading…':ConversationSettings.runtime()):'Agent host: no conversation selected';
-    $('conversation-runtime').title='This is the selected conversation, not the desktop client or its subagents. The public API provides no execution host or machine-move endpoint. Use the Capy thread to inspect or move its workspace.';
+    $('conversation-runtime').title=capability('runtime').reason || 'Execution host reported by the provider.';
   },
   async open(){
+    if(!capability('modelSelection').supported){say(capability('modelSelection').reason);return;}
     if(!thread||document.querySelector('dialog[open]'))return;
     clearKeySequence();this.origin=document.activeElement;this.target=thread.id;
     $('conversation-settings').showModal();$('model-close').focus();
@@ -33,7 +34,7 @@ const conversationControls={
     $('model-error').textContent='Loading available models…';$('model-apply').disabled=true;$('model-reload').disabled=true;
     $('reply-model').disabled=true;$('reply-reasoning').disabled=true;$('reply-modes').replaceChildren();
     try{
-      const catalog=await desk.models();
+      const catalog=await client.models();
       if(request!==this.catalogRequest||revision!==this.revision||target!==thread?.id||!$('conversation-settings').open)return;
       this.models=catalog.items;
       const saved=this.choices.get(target);

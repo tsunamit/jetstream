@@ -27,7 +27,7 @@ const workActivity={
     if(this.loading||!this.dialog.open||document.hidden||changingConnection)return;
     const request=++this.request;this.loading=true;this.render();
     try{
-      const data=demoMode?await desk.activity():await workTree.refresh(true);
+      const data=demoMode?await client.activity():await workTree.refresh(true);
       if(request!==this.request||!this.dialog.open)return;
       this.data=data;this.error='';
     }catch(error){if(request===this.request&&this.dialog.open)this.error=error.message||'Refresh failed';}

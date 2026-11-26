@@ -26,6 +26,7 @@ let visitOrder = 0;
 function recordVisit(item) { if (item) visits.set(item.id, ++visitOrder); }
 const labels = { centralSearch:'Search captains and threads', threads:'Recent threads · all projects', captains:'Recent captain visits', running:'What’s running', needs:'What needs me', results:'Recent results', pins:'Your quick jumps' };
 let pins = [];
+let pinsKey = 'demo-pins';
 try {
   const saved = JSON.parse(localStorage.getItem('demo-pins') || '[]');
   if (Array.isArray(saved)) pins = [...new Set(saved.filter(id => typeof id === 'string'))].slice(0, 4);
@@ -33,7 +34,7 @@ try {
 
 async function renderPins() {
   if (!demoMode) return;
-  if (!catalog) catalog = await desk.activity();
+  if (!catalog) catalog = await client.activity();
   $('pins').hidden = false;
   $('pin-list').replaceChildren(...pins.map((id, index) => {
     const item = [...catalog.threads, ...catalog.captains].find(t => t.id === id);
@@ -54,7 +55,7 @@ function togglePin() {
   if (pins.includes(thread.id)) pins = pins.filter(id => id !== thread.id);
   else if (pins.length < 4) pins.push(thread.id);
   else { say('Four quick jumps are pinned. Unpin one first.'); return; }
-  localStorage.setItem('demo-pins', JSON.stringify(pins));
+  localStorage.setItem(pinsKey, JSON.stringify(pins));
   renderPins().catch(fail);
 }
 
@@ -153,6 +154,7 @@ function renderPicker(preserve = true, reveal = !preserve) {
 }
 
 async function showPicker(next) {
+  if(next==='captains'&&!capability('hierarchy').supported){say(capability('hierarchy').reason);return;}
   clearKeySequence();
   if (document.querySelector('dialog[open]:not(#picker)')) return;
   const request = ++pickerRequest;
@@ -184,7 +186,7 @@ async function showPicker(next) {
     $('picker-list').scrollTop=saved?.scroll??0;
     if (pickerLoading) {
       const readRevision = typeof readState!=='undefined'?readState.model.version:0;
-      const data = collection==='centralSearch'&&!demoMode ? await workTree.refresh(true) : await desk.activity();
+      const data = collection==='centralSearch'&&!demoMode ? await workTree.refresh(true) : await client.activity();
       if (request !== pickerRequest || !picker.open) return;
       const id = matches[selected]?.id, scroll = $('picker-list').scrollTop;
       if(typeof readState!=='undefined')readState.overlay(data,readRevision);
@@ -241,7 +243,13 @@ for (const button of document.querySelectorAll('[data-picker]')) {
 }
 search.oninput = () => { selected = 0; renderPicker(false); };
 desk.status().then(async status => {
-  $('activity-links').hidden = !status.demo;
+  if(status.provider?.id!=='capy'){
+    pinsKey='provider-pins-'+status.provider.scope;
+    try{const saved=JSON.parse(localStorage.getItem(pinsKey)||'[]');pins=Array.isArray(saved)?saved.filter(id=>typeof id==='string').slice(0,4):[];}catch{pins=[];}
+  }
+  const hierarchy=status.provider?.capabilities.hierarchy;
+  if(hierarchy&&!hierarchy.supported){const tab=$('picker').querySelector('[data-picker="captains"]');tab.disabled=true;tab.title=hierarchy.reason;}
+  $('activity-links').hidden = !status.provider?.capabilities.activityHistory?.supported;
   if (status.demo) { demoMode = true; await renderPins(); }
   else pins = [];
 }).catch(fail);

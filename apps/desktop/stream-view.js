@@ -6,10 +6,11 @@ const liveStream = {
     this.revision++; clearTimeout(this.timer); clearTimeout(this.statusTimer); this.dirty = false;this.needsCommit=true;
     this.timer=null;this.statusTimer=null;this.subagents=new Map();$('crew-health').textContent='';
     $('new-output').hidden = true;
-    if (!item || document.hidden) {desk.stream(null).catch(()=>{});return;}
-    if(this.record.historyLimited){this.state='limited';desk.stream(null).catch(()=>{});this.health();return;}
+    if (!item || document.hidden) {client.stream(null).catch(()=>{});return;}
+    if(this.record.historyLimited){this.state='limited';client.stream(null).catch(()=>{});this.health();return;}
+    if(!capability('stream').supported){this.state='unavailable';this.health();return;}
     const token = this.token;
-    desk.stream({id:item.id,token}).catch(()=>{if (this.token === token) {this.state='polling';this.health();scheduleMessages(15000);}});
+    client.stream({id:item.id,token}).catch(()=>{if (this.token === token) {this.state='polling';this.health();scheduleMessages(15000);}});
     this.health();this.schedule();
   },
   suppressesPolling() {return ['access','unavailable'].includes(this.state)||this.record.partial.size===0&&!this.record.unplaced(messageState.items)&&this.state==='streaming';},
@@ -112,8 +113,8 @@ const output=document.createElement('button');output.id='new-output';output.type
 output.onclick=()=>{transcript.scrollTop=transcript.scrollHeight;output.hidden=true;$('conversation').focus({preventScroll:true});reconcileChatCursor();paintChat(false);};
 $('thread-code').after(health,crew,output);
 transcript.addEventListener('scroll',()=>{if(transcript.scrollHeight-transcript.scrollTop-transcript.clientHeight<40)output.hidden=true;},{passive:true});
-desk.onStream(batch=>{
-  if (batch.token!==liveStream.token || batch.id!==liveStream.id || document.hidden || changingConnection) return;
+client.onStream(batch=>{
+  if (batch.context && batch.context!==providerInfo?.scope || batch.token!==liveStream.token || batch.id!==liveStream.id || document.hidden || changingConnection) return;
   let changed=false;
   for (const frame of batch.events) {
     workActivity.observed(batch.id,frame);
@@ -135,18 +136,18 @@ desk.onStream(batch=>{
   if(liveStream.record.partial.size && !messageBusy && !messageTimer)scheduleMessages(100);
   if(changed&&liveStream.record.unplaced(messageState.items)&&!messageBusy&&!messageTimer)scheduleMessages(100);
   if(liveStream.record.historyLimited) {
-    desk.stream(null).catch(()=>{});liveStream.state='limited';liveStream.record.live.clear();liveStream.health();
+    client.stream(null).catch(()=>{});liveStream.state='limited';liveStream.record.live.clear();liveStream.health();
     if(!messageBusy&&!messageState.next)scheduleMessages(15000);
     liveStream.revision++;liveStream.schedule();return;
   }
   if (changed) {liveStream.revision++;liveStream.schedule();}
-  if (batch.sequence) desk.streamAck(batch.token,batch.sequence).catch(()=>{});
+  if (batch.sequence) client.ack(batch.token,batch.sequence).catch(()=>{});
 });
 document.addEventListener('visibilitychange',()=>{
-  if(document.hidden) {liveStream.token=null;liveStream.revision++;clearTimeout(liveStream.timer);liveStream.timer=null;desk.stream(null).catch(()=>{});}
+  if(document.hidden) {liveStream.token=null;liveStream.revision++;clearTimeout(liveStream.timer);liveStream.timer=null;client.stream(null).catch(()=>{});}
   else liveStream.select(thread);
 });
-window.addEventListener('offline',()=>{desk.stream(null).catch(()=>{});liveStream.state='offline';liveStream.health();});
+window.addEventListener('offline',()=>{client.stream(null).catch(()=>{});liveStream.state='offline';liveStream.health();});
 window.addEventListener('online',()=>{if(!document.hidden)liveStream.select(thread);});
-window.addEventListener('beforeunload',()=>{liveStream.token=null;desk.stream(null).catch(()=>{});});
+window.addEventListener('beforeunload',()=>{liveStream.token=null;client.stream(null).catch(()=>{});});
 if (thread) liveStream.select(thread);

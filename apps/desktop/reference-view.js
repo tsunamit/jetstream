@@ -91,7 +91,7 @@ async function showReferenceView(target, preview = false) {
 }
 async function hydrateReferenceContext(target, request) {
   try {
-    const resolved=await desk.referenceContext(target.kind,target.id);
+    const resolved=await client.reference(target.kind,target.id);
     if(request!==navigationRequest||changingConnection||thread?.id!==target.id)return;
     thread=resolved;
     project=resolved.projectId;projectPicker.value=project;

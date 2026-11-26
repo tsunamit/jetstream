@@ -46,9 +46,9 @@ const workTree = {
     renderFilterSummary();
     $('work-tree-button').textContent='Filters';
     if(!$('tree-health'))this.controls();
-    if(!this.loaded){const saved=await desk.workspaceConfig();this.config=saved.config;this.loaded=true;if(saved.error)say(saved.error);this.controls();}
+    if(!this.loaded){const saved=await client.workspaceSettings();this.config=saved.config;this.loaded=true;if(saved.error)say(saved.error);this.controls();}
   },
-  async save(){try{await desk.saveWorkspaceConfig(this.config);}catch(error){say('Work-tree settings were not saved: '+error.message);}},
+  async save(){try{await client.saveWorkspaceSettings(this.config);}catch(error){say('Work-tree settings were not saved: '+error.message);}},
   controls(){
     const focused=$('tree-controls').contains(document.activeElement)?document.activeElement:null,selection=focused?.matches('input[type="search"]')?[focused.selectionStart,focused.selectionEnd]:null;
     const host=$('tree-controls'),wasOpen=$('tree-options')?.open;host.replaceChildren();let target=host;
@@ -70,6 +70,7 @@ const workTree = {
     }
     const sections=document.createElement('details'),summary=document.createElement('summary');summary.textContent='Sections / order';sections.append(summary);
     for(const section of ['threads','captains']){
+      if(section==='captains'&&!capability('hierarchy').supported){const note=document.createElement('p');note.textContent=capability('hierarchy').reason;sections.append(note);continue;}
       const l=document.createElement('label'),i=document.createElement('input');i.type='checkbox';i.checked=this.config.sections.includes(section);i.onchange=()=>{this.config.sections=this.config.sections.filter(s=>s!==section);if(i.checked)this.config.sections.push(section);this.render();this.save();};l.append(i,document.createTextNode(section));sections.append(l);
     }
     const reverse=document.createElement('button');reverse.textContent='Reverse section order';reverse.onclick=()=>{this.config.sections.reverse();this.render();this.save();};sections.append(reverse);target.append(sections);
@@ -85,7 +86,7 @@ const workTree = {
     this.busy=(async()=>{
       try{
         const started=Date.now(),readRevision=typeof readState!=='undefined'?readState.model.version:0;
-        const data=await desk.workspace(),changed=JSON.stringify(data.projects)!==JSON.stringify(this.state.data.projects);
+        const data=await client.workspace(),changed=JSON.stringify(data.projects)!==JSON.stringify(this.state.data.projects);
         if(typeof readState!=='undefined')readState.overlay(data,readRevision);
         if(typeof liveStream!=='undefined')liveStream.overlay(data,started);
         const selected=data.threads.concat(data.captains).find(i=>i.id===thread?.id);
