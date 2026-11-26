@@ -1,6 +1,14 @@
 let chatPosition = 0, chatAnchor = null, chatLineVisual = false, chatQuery = '', localYank = '';
 
 let chatProjection = null;
+let chatTextCache = null;
+const chatTextObserver = new MutationObserver(() => { chatTextCache = null; });
+chatTextObserver.observe($('entries'), {childList:true, subtree:true, characterData:true, attributes:true, attributeFilter:['class','hidden','open']});
+function resetChatProjection() {
+  chatTextObserver.takeRecords();
+  chatTextCache = null;
+  chatProjection = null;
+}
 const paneStates = new Map();
 function paneSnapshot() {
   return {chatPosition, chatAnchor, chatLocation:chatLocation(chatPosition), anchorLocation:chatLocation(chatAnchor), chatLineVisual, editor:composer.snapshot(), selection:[draft.selectionStart,draft.selectionEnd]};
@@ -18,9 +26,15 @@ function restorePaneState(id, snapshot) {
   paintChat(false); keyboardMode();
 }
 function chatText() {
-  const pieces = []; let text = '', block = null;
+  if (chatTextObserver.takeRecords().length) chatTextCache = null;
+  if (chatTextCache) return chatTextCache;
+  const pieces = [], chunks = []; let length = 0, last = '', block = null;
+  function append(value) {
+    chunks.push(value); length += value.length;
+    if (value.length) last = value.at(-1);
+  }
   function add(node, value, object = false) {
-    pieces.push({node,start:text.length,end:text.length + value.length,object}); text += value;
+    pieces.push({node,start:length,end:length + value.length,object}); append(value);
   }
   for (const article of $('entries').children) {
     const walker = document.createTreeWalker(article, NodeFilter.SHOW_ELEMENT | NodeFilter.SHOW_TEXT, {
@@ -40,17 +54,17 @@ function chatText() {
     let node;
     while ((node = walker.nextNode())) {
       if (node.nodeType === Node.ELEMENT_NODE) {
-        if (node.matches('br')) { if (!text.endsWith('\n')) text += '\n'; continue; }
-        if (text && !text.endsWith('\n')) text += '\n';
-        add(node, '\uFFFC', true); text += '\n'; block = null; continue;
+        if (node.matches('br')) { if (last !== '\n') append('\n'); continue; }
+        if (length && last !== '\n') append('\n');
+        add(node, '\uFFFC', true); append('\n'); block = null; continue;
       }
       const nextBlock = node.parentElement.closest('p,pre,li,h1,h2,h3,h4,h5,h6,td,th,blockquote') ?? node.parentElement;
-      if (block !== nextBlock && text && !text.endsWith('\n')) text += '\n';
+      if (block !== nextBlock && length && last !== '\n') append('\n');
       block = nextBlock; add(node, node.textContent);
     }
-    if (text && !text.endsWith('\n')) text += '\n';
+    if (length && last !== '\n') append('\n');
   }
-  return {text,pieces};
+  return chatTextCache = {text:chunks.join(''),pieces};
 }
 function chatOffset(projection, position, backwards = false) {
   const {pieces,text} = projection;

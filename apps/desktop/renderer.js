@@ -279,6 +279,7 @@ function displayThread(item, savedMessages) {
   ++messageRequest;
   desk.cancelMessages().catch(()=>{});
   savePaneState(thread?.id);
+  resetChatProjection();
   if (thread && messageCache.has(thread.id)) messageViews.set(thread.id, {nodes:[...$('entries').children].filter(n=>!n.dataset.preview),scroll:transcript.scrollTop});
   if (thread) drafts.set(thread.id, draft.value);
   thread = item;
@@ -472,6 +473,7 @@ async function changeConnection(action) {
     await desk.stashDrafts([...drafts].slice(-100));
     const result = await action();
     if (result?.needsKey) { $('connection-mode').value = demoMode ? 'mock' : 'live'; connection.showModal(); $('key').focus(); return; }
+    resetChatProjection();
     location.reload();
   } catch (error) { $('connection-mode').value = demoMode ? 'mock' : 'live'; throw error; }
   finally { document.body.inert = false; changingConnection = false; }
