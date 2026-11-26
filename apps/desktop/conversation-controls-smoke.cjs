@@ -112,9 +112,24 @@ const assert=require('node:assert/strict'),fs=require('node:fs/promises'),os=req
     await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].setSize(640,600));
     await page.waitForFunction(()=>innerWidth===640&&transcript.clientHeight>=200);
     await page.evaluate(()=>{globalThis.savedModelFixture={choice:conversationControls.choices.get(thread.id),metadata:conversationControls.metadata};conversationControls.choices.set(thread.id,{modelId:'fixture/claude-sonnet-long-name'});conversationControls.metadata={id:thread.id,lastModelId:'fixture/claude-sonnet-long-name'};conversationControls.render();});
-    await page.evaluate(()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r))));
-    assert.ok(await page.evaluate(()=>transcript.clientHeight>=200),'Native minimum retains transcript with long model IDs');
-    assert.ok(await page.evaluate(()=>{const h=document.querySelector('.thread-head').getBoundingClientRect();return ['conversation-model','conversation-last-model','conversation-runtime'].every(id=>{const r=$(id).getBoundingClientRect();return r.top>=h.top&&r.bottom<=h.bottom;});}),'Model and runtime states remain inside the compact header');
+    const settledGeometry=await page.evaluate(()=>new Promise((resolve,reject)=>{
+      const started=performance.now();let previous='',changed=started;
+      function sample(now){
+        const boxes=Object.fromEntries(['.top','main','.thread-head','#transcript','#composer'].map(selector=>{
+          const element=document.querySelector(selector),r=element.getBoundingClientRect();
+          return [selector,{x:r.x,y:r.y,width:r.width,height:r.height,clientHeight:element.clientHeight}];
+        }));
+        const snapshot=JSON.stringify({boxes,naturalHeight:layoutView.naturalHeight});
+        if(snapshot!==previous||layoutView.frame!==null){previous=snapshot;changed=now;}
+        if(now-changed>=100){resolve(JSON.parse(snapshot));return;}
+        if(now-started>5000){reject(Error('Resize geometry did not settle: '+snapshot));return;}
+        requestAnimationFrame(sample);
+      }
+      requestAnimationFrame(sample);
+    }));
+    console.log('PASS settled native-minimum geometry',JSON.stringify(settledGeometry));
+    assert.ok(await page.evaluate(()=>transcript.clientHeight>=200),'Native minimum retains transcript with long model IDs: '+JSON.stringify(settledGeometry));
+    assert.ok(await page.evaluate(()=>{const h=document.querySelector('.thread-head').getBoundingClientRect();return ['conversation-model','conversation-last-model','conversation-runtime'].every(id=>{const r=$(id).getBoundingClientRect();return r.top>=h.top&&r.bottom<=h.bottom;});}),'Model and runtime states remain inside the compact header: '+JSON.stringify(settledGeometry));
     if(process.argv[2])await shot('model-runtime-native-minimum.png');
     await page.evaluate(()=>{conversationControls.choices.set(thread.id,savedModelFixture.choice);conversationControls.metadata=savedModelFixture.metadata;conversationControls.render();});
     const geometry=await page.locator('#conversation-model').boundingBox();assert.ok(geometry.x>=0&&geometry.x+geometry.width<=640);
